@@ -41,5 +41,16 @@ Before completion, run the active stage's tests, lint, and type checks; inspect 
 diff for scope leakage, unsafe logging, unnecessary dependencies, and accidental
 future-stage work. Do not weaken a check merely to make it pass.
 
+## Adaptive Verified Bug-Fix Workflow
+
+For non-trivial bug investigation and fixes, use the Adaptive Verified Bug-Fix
+Workflow in `docs/workflows/ADAPTIVE_VERIFIED_BUG_FIX.md`. The main Codex agent
+acts as Coordinator and uses the project-scoped specialized roles registered in
+`.codex/config.toml` for investigation, root-cause review, planning, plan review,
+implementation, code review, architecture review, business review, specialist
+review, and final verification. Use AUTO risk classification unless the user
+specifies a level; follow the documented LOW/MEDIUM/HIGH routing and maintain
+execution plans for MEDIUM/HIGH tasks.
+
 Use the report format in `ROADMAP.md`. Update the current-stage marker here only
 when the prior stage has passed and the user explicitly starts the next stage.

@@ -1,0 +1,40 @@
+# Project-scoped Codex agent roles. Paths are relative to this file.
+
+[agents.investigator]
+config_file = "agents/investigator.toml"
+
+[agents.root-cause-reviewer]
+config_file = "agents/root-cause-reviewer.toml"
+
+[agents.planner]
+config_file = "agents/planner.toml"
+
+[agents.plan-reviewer]
+config_file = "agents/plan-reviewer.toml"
+
+[agents.implementer]
+config_file = "agents/implementer.toml"
+
+[agents.code-reviewer]
+config_file = "agents/code-reviewer.toml"
+
+[agents.architecture-reviewer]
+config_file = "agents/architecture-reviewer.toml"
+
+[agents.business-reviewer]
+config_file = "agents/business-reviewer.toml"
+
+[agents.final-verifier]
+config_file = "agents/final-verifier.toml"
+
+[agents.security-reviewer]
+config_file = "agents/specialists/security-reviewer.toml"
+
+[agents.database-reviewer]
+config_file = "agents/specialists/database-reviewer.toml"
+
+[agents.api-reviewer]
+config_file = "agents/specialists/api-reviewer.toml"
+
+[agents.concurrency-reviewer]
+config_file = "agents/specialists/concurrency-reviewer.toml"

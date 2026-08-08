@@ -1,0 +1,5 @@
+# Active execution records may contain logs, internal paths, or sensitive context.
+# Keep them local by default. Add a reviewed file explicitly only when appropriate.
+*
+!.gitignore
+!.gitkeep
