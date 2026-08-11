@@ -34,3 +34,12 @@ def test_production_rejects_insecure_llm_url() -> None:
             llm_base_url="http://localhost:1234",
             _env_file=None,
         )
+
+
+def test_request_limit_must_cover_file_limit() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            ingestion_max_file_size_bytes=2_000,
+            ingestion_max_request_size_bytes=1_999,
+            _env_file=None,
+        )

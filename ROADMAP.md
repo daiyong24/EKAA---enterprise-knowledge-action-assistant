@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 1 — LLM Foundation**. A stage may start only after
+The active stage is **Stage 2 — Document Ingestion**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -24,7 +24,7 @@ Stage 9 is complete.
   checks pass; CI definition covers the same checks; Stage 0 report is complete.
 - **Non-goals:** Database, Docker, LLM, ingestion, RAG, frontend, auth, or agents.
 
-## Stage 1 — LLM Foundation (Active)
+## Stage 1 — LLM Foundation
 
 - **Objective:** Add a provider-neutral, testable LLM application boundary.
 - **Deliverables:** `POST /api/chat`; provider protocol; one implementation; prompt
@@ -36,7 +36,7 @@ Stage 9 is complete.
   and documented provider choice/cost/privacy assumptions.
 - **Non-goals:** Retrieval, enterprise factual answering, tools, or chat memory.
 
-## Stage 2 — Document Ingestion
+## Stage 2 — Document Ingestion (Active)
 
 - **Objective:** Reliably ingest PDF, TXT, and Markdown into normalized chunks.
 - **Deliverables:** Validated upload; parser/cleaner/chunker pipeline; PostgreSQL

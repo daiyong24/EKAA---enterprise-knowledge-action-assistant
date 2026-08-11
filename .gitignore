@@ -1,5 +1,8 @@
 .env
 .venv/
+ekaa.db
+ekaa.db-shm
+ekaa.db-wal
 __pycache__/
 *.py[cod]
 .pytest_cache/

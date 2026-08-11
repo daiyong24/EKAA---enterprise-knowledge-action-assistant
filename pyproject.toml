@@ -9,9 +9,14 @@ description = "Enterprise Knowledge & Action Assistant"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "alembic>=1.16,<2.0",
   "fastapi>=0.116,<1.0",
   "httpx>=0.28,<1.0",
   "pydantic-settings>=2.10,<3.0",
+  "PyMuPDF>=1.26,<2.0",
+  "psycopg[binary]>=3.2,<4.0",
+  "python-multipart>=0.0.20,<1.0",
+  "SQLAlchemy>=2.0.43,<3.0",
   "uvicorn[standard]>=0.35,<1.0",
 ]
 
@@ -46,7 +51,7 @@ packages = ["backend"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = "uvicorn.*"
+module = ["fitz", "uvicorn.*"]
 ignore_missing_imports = true
 
 [tool.coverage.run]

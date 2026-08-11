@@ -15,8 +15,8 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 1 — LLM Foundation. Do not implement retrieval/RAG, ingestion, database,
-authentication, tools, agents, chat memory, or frontend functionality.
+Stage 2 — Document Ingestion. Do not implement embeddings, vector search,
+retrieval/RAG, authentication, tools, agents, chat memory, or frontend functionality.
 
 ## Engineering Rules
 
