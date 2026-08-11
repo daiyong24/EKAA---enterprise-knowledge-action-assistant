@@ -5,11 +5,11 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 0 — Project Foundation.
+Stage 1 — LLM Foundation.
 
-Implemented now: FastAPI foundation, settings, logging, exception mapping, health
-endpoint, tests, and quality automation. LLM, RAG, database, frontend, and agent
-features are intentionally absent.
+Implemented now: FastAPI foundation plus a provider-neutral, stateless LLM chat
+boundary. LLM is disabled unless explicitly configured. RAG, database, frontend,
+authentication, tools, agents, and chat memory are intentionally absent.
 
 ## Requirements
 
@@ -31,6 +31,12 @@ Open `http://127.0.0.1:8000/health`. Expected response:
 ```json
 {"status":"ok"}
 ```
+
+To enable a compatible provider locally, set `EKAA_LLM_ENABLED=true`,
+`EKAA_LLM_API_KEY`, and `EKAA_LLM_MODEL` in your untracked `.env`. Then send a
+`POST /api/chat` body such as `{"message":"Explain RAG."}`. Stage 1 accepts only
+general conceptual questions and intentionally withholds free-text provider output
+until grounded generation exists; tests never make provider requests.
 
 ## Quality Checks
 

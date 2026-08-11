@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 0 — Project Foundation**. A stage may start only after
+The active stage is **Stage 1 — LLM Foundation**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -12,7 +12,7 @@ Every stage ends with tests, review, fixes, documentation, a report, and a stop.
 claim-level citation UX and validation. Synthetic/public data is mandatory until
 Stage 9 is complete.
 
-## Stage 0 — Project Foundation (Active)
+## Stage 0 — Project Foundation
 
 - **Objective:** Establish trustworthy repository and backend foundations.
 - **Deliverables:** Source-of-truth docs; Python packaging; FastAPI app; settings;
@@ -24,7 +24,7 @@ Stage 9 is complete.
   checks pass; CI definition covers the same checks; Stage 0 report is complete.
 - **Non-goals:** Database, Docker, LLM, ingestion, RAG, frontend, auth, or agents.
 
-## Stage 1 — LLM Foundation
+## Stage 1 — LLM Foundation (Active)
 
 - **Objective:** Add a provider-neutral, testable LLM application boundary.
 - **Deliverables:** `POST /api/chat`; provider protocol; one implementation; prompt

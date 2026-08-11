@@ -4,9 +4,15 @@ from backend.app.api.router import api_router
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.exceptions import register_exception_handlers
 from backend.app.core.logging import configure_logging
+from backend.app.llm.policy import StageOneResponsePolicy
+from backend.app.llm.prompt_builder import PromptBuilder
+from backend.app.llm.provider import LLMProvider, OpenAICompatibleProvider
+from backend.app.llm.service import ChatService
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, provider: LLMProvider | None = None
+) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
 
@@ -14,6 +20,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title=resolved_settings.app_name,
         debug=resolved_settings.debug,
         version="0.1.0",
+    )
+    application.state.chat_service = ChatService(
+        provider=provider or OpenAICompatibleProvider(resolved_settings),
+        prompt_builder=PromptBuilder(),
+        response_policy=StageOneResponsePolicy(),
+        max_retries=resolved_settings.llm_max_retries,
+        retry_delay_seconds=resolved_settings.llm_retry_delay_seconds,
     )
     register_exception_handlers(application)
     application.include_router(api_router, prefix=resolved_settings.api_prefix)

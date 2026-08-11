@@ -15,8 +15,8 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 0 — Project Foundation. Do not implement LLM, RAG, ingestion, database,
-authentication, agent, or frontend functionality.
+Stage 1 — LLM Foundation. Do not implement retrieval/RAG, ingestion, database,
+authentication, tools, agents, chat memory, or frontend functionality.
 
 ## Engineering Rules
 

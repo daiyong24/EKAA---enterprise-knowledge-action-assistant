@@ -2,6 +2,7 @@ import logging
 from typing import Final
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,26 @@ class ApplicationError(Exception):
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(RequestValidationError)
+    async def handle_request_validation_error(
+        request: Request, _exc: RequestValidationError
+    ) -> JSONResponse:
+        """Avoid echoing rejected user input in FastAPI's default 422 response."""
+        logger.warning(
+            "request_validation_error method=%s path=%s",
+            request.method,
+            request.url.path,
+        )
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": {
+                    "code": "invalid_request",
+                    "message": "The request is invalid.",
+                }
+            },
+        )
+
     @app.exception_handler(ApplicationError)
     async def handle_application_error(
         request: Request, exc: ApplicationError
