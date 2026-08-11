@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     JSON,
     DateTime,
@@ -77,3 +78,42 @@ class DocumentChunk(Base):
         DateTime(timezone=True), nullable=False, default=utc_now
     )
     document: Mapped[Document] = relationship(back_populates="chunks")
+    embeddings: Mapped[list["ChunkEmbedding"]] = relationship(
+        back_populates="chunk", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class ChunkEmbedding(Base):
+    """Versioned embedding for one normalized chunk.
+
+    Multiple model/dimension versions may coexist during a controlled re-embedding
+    rollout. Retrieval always selects exactly the configured model and dimension.
+    """
+
+    __tablename__ = "chunk_embeddings"
+    __table_args__ = (
+        UniqueConstraint(
+            "chunk_id",
+            "embedding_model",
+            "embedding_dimensions",
+            name="uq_chunk_embedding_model_dimension",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(32), primary_key=True, default=lambda: uuid4().hex
+    )
+    chunk_id: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("document_chunks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    embedding_model: Mapped[str] = mapped_column(String(255), nullable=False)
+    embedding_dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(), nullable=False)
+    content_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    chunk: Mapped[DocumentChunk] = relationship(back_populates="embeddings")

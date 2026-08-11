@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 2 — Document Ingestion**. A stage may start only after
+The active stage is **Stage 3 — Embeddings + Vector Retrieval**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -36,7 +36,7 @@ Stage 9 is complete.
   and documented provider choice/cost/privacy assumptions.
 - **Non-goals:** Retrieval, enterprise factual answering, tools, or chat memory.
 
-## Stage 2 — Document Ingestion (Active)
+## Stage 2 — Document Ingestion
 
 - **Objective:** Reliably ingest PDF, TXT, and Markdown into normalized chunks.
 - **Deliverables:** Validated upload; parser/cleaner/chunker pipeline; PostgreSQL
@@ -48,7 +48,7 @@ Stage 9 is complete.
 - **Non-goals:** OCR, embeddings, retrieval, real confidential data, or broad format
   coverage.
 
-## Stage 3 — Embeddings + Vector Retrieval
+## Stage 3 — Embeddings + Vector Retrieval (Active)
 
 - **Objective:** Add measurable semantic retrieval over authorized demo content.
 - **Deliverables:** Embedding protocol and one provider; pgvector migration; batch

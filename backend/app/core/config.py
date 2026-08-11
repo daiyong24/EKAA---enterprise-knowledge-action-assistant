@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     llm_max_retries: int = Field(default=2, ge=0, le=3)
     llm_retry_delay_seconds: float = Field(default=0.1, ge=0, le=5)
     database_url: str = "sqlite:///./ekaa.db"
+    embedding_enabled: bool = False
+    embedding_provider: Literal["deterministic"] = "deterministic"
+    embedding_model: str = "deterministic-hash-v1"
+    embedding_dimensions: int = Field(default=64, ge=8, le=4_096)
+    embedding_batch_size: int = Field(default=32, ge=1, le=256)
+    retrieval_default_top_k: int = Field(default=5, ge=1, le=20)
+    retrieval_max_top_k: int = Field(default=20, ge=1, le=50)
     ingestion_max_file_size_bytes: int = Field(
         default=10 * 1024 * 1024, gt=0, le=50 * 1024 * 1024
     )
@@ -64,6 +71,14 @@ class Settings(BaseSettings):
             raise ValueError("ingestion chunk overlap must be smaller than chunk size")
         if self.ingestion_max_request_size_bytes < self.ingestion_max_file_size_bytes:
             raise ValueError("ingestion request limit must cover the file size limit")
+        if not self.embedding_model.strip():
+            raise ValueError("embedding model must not be blank")
+        if self.retrieval_default_top_k > self.retrieval_max_top_k:
+            raise ValueError("retrieval default top K must not exceed the maximum")
+        if self.embedding_enabled and not self.database_url.startswith("postgresql"):
+            raise ValueError(
+                "enabled embeddings require a PostgreSQL pgvector database"
+            )
         return self
 
 

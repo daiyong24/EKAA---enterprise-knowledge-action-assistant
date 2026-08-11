@@ -5,13 +5,14 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 2 — Document Ingestion.
+Stage 3 — Embeddings + Vector Retrieval.
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
-and safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into
-normalized relational chunks. LLM is disabled unless explicitly configured. RAG,
-embeddings, retrieval, authentication, frontend, tools, agents, and chat memory
-are intentionally absent.
+safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into
+normalized relational chunks, plus a provider-neutral embedding boundary and
+PostgreSQL/pgvector semantic retrieval. LLM is disabled unless explicitly
+configured. RAG answer generation, citations, hybrid retrieval, authentication,
+frontend, tools, agents, and chat memory are intentionally absent.
 
 ## Requirements
 
@@ -51,6 +52,32 @@ curl.exe -X POST http://127.0.0.1:8000/api/documents -F "file=@sample.txt;type=t
 
 See `docs/STAGE_2_INGESTION_DESIGN.md` for MIME rules, idempotency, data handling,
 and the intentionally excluded capabilities.
+
+## Stage 3 Retrieval
+
+Stage 3's deployed path is PostgreSQL with the `pgvector` extension; SQLite remains
+for isolated relational tests only and is not a vector-search implementation. Apply
+the migrations against PostgreSQL, then set `EKAA_EMBEDDING_ENABLED=true`. The
+included `deterministic` provider is local, reproducible, and sends no content to a
+third party, but is intentionally not a quality production embedding model. A future
+approved provider must be introduced through the protocol and documented data-use
+review.
+
+The batch embedding service is a controlled maintenance boundary, not a public API:
+it embeds existing completed chunks in atomic batches. `POST /api/retrieval/search`
+embeds a query and returns ranked, traceable synthetic/public chunks only; it never
+generates an answer. See `docs/STAGE_3_EMBEDDING_RETRIEVAL_DESIGN.md`.
+
+After provisioning a dedicated PostgreSQL database with pgvector and applying
+`alembic upgrade head`, an operator may run the non-public maintenance command:
+
+```powershell
+python -m backend.app.embeddings.cli embed-pending
+```
+
+It requires `EKAA_EMBEDDING_ENABLED=true` and a PostgreSQL URL; it has no HTTP
+endpoint and only processes already-completed chunks. A non-zero exit code reports
+disabled configuration or a batch that needs operator retry.
 
 ## Quality Checks
 

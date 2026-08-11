@@ -43,3 +43,10 @@ def test_request_limit_must_cover_file_limit() -> None:
             ingestion_max_request_size_bytes=1_999,
             _env_file=None,
         )
+
+
+def test_enabled_embeddings_require_postgresql_pgvector_path() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            embedding_enabled=True, database_url="sqlite:///./ekaa.db", _env_file=None
+        )

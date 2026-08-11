@@ -15,8 +15,9 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 2 — Document Ingestion. Do not implement embeddings, vector search,
-retrieval/RAG, authentication, tools, agents, chat memory, or frontend functionality.
+Stage 3 — Embeddings + Vector Retrieval. Do not implement generation, RAG answers,
+hybrid/keyword search, reranking, authentication, tools, agents, chat memory, or
+frontend functionality.
 
 ## Engineering Rules
 
