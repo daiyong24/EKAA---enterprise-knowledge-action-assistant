@@ -5,14 +5,15 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 3 — Embeddings + Vector Retrieval.
+Stage 4 — Basic RAG.
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
 safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into
-normalized relational chunks, plus a provider-neutral embedding boundary and
-PostgreSQL/pgvector semantic retrieval. LLM is disabled unless explicitly
-configured. RAG answer generation, citations, hybrid retrieval, authentication,
-frontend, tools, agents, and chat memory are intentionally absent.
+normalized relational chunks, provider-neutral embeddings and PostgreSQL/pgvector
+semantic retrieval, plus bounded retrieval-augmented generation over that evidence.
+LLM and RAG are disabled unless explicitly configured. Claim-level citations,
+hybrid retrieval, authentication, frontend, tools, agents, and chat memory are
+intentionally absent.
 
 ## Requirements
 
@@ -78,6 +79,22 @@ python -m backend.app.embeddings.cli embed-pending
 It requires `EKAA_EMBEDDING_ENABLED=true` and a PostgreSQL URL; it has no HTTP
 endpoint and only processes already-completed chunks. A non-zero exit code reports
 disabled configuration or a batch that needs operator retry.
+
+## Stage 4 Basic RAG
+
+Stage 4 adds `POST /api/rag/answer`, a separate endpoint from the conservative
+Stage 1 `/api/chat` sandbox. It first embeds the question and retrieves bounded
+synthetic/public chunks, then sends only selected context to the configured
+provider. Set `EKAA_RAG_ENABLED=true` only alongside enabled PostgreSQL/pgvector
+retrieval and an explicitly configured compatible LLM provider.
+
+The endpoint returns an answer, normalized provider usage, and server-derived
+document/chunk source metadata. It never accepts source IDs from the model. When
+retrieval returns no result above `EKAA_RAG_MIN_EVIDENCE_SCORE`, or none can fit the
+configured source/context character/token budgets, EKAA returns the deterministic
+insufficient-information response without calling the LLM. Retrieved text and the
+question remain untrusted data in the generation prompt. See
+`docs/STAGE_4_RAG_DESIGN.md` for configuration, security boundaries, and limits.
 
 ## Quality Checks
 

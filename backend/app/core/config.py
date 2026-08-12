@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     embedding_batch_size: int = Field(default=32, ge=1, le=256)
     retrieval_default_top_k: int = Field(default=5, ge=1, le=20)
     retrieval_max_top_k: int = Field(default=20, ge=1, le=50)
+    rag_enabled: bool = False
+    rag_retrieval_top_k: int = Field(default=5, ge=1, le=50)
+    rag_min_evidence_score: float = Field(default=0.2, ge=-1, le=1)
+    rag_min_evidence_sources: int = Field(default=1, ge=1, le=10)
+    rag_max_sources: int = Field(default=5, ge=1, le=10)
+    rag_max_context_characters: int = Field(default=6_000, ge=100, le=40_000)
+    rag_max_context_tokens: int = Field(default=1_500, ge=25, le=10_000)
     ingestion_max_file_size_bytes: int = Field(
         default=10 * 1024 * 1024, gt=0, le=50 * 1024 * 1024
     )
@@ -75,10 +82,18 @@ class Settings(BaseSettings):
             raise ValueError("embedding model must not be blank")
         if self.retrieval_default_top_k > self.retrieval_max_top_k:
             raise ValueError("retrieval default top K must not exceed the maximum")
+        if self.rag_retrieval_top_k > self.retrieval_max_top_k:
+            raise ValueError("RAG retrieval top K must not exceed retrieval maximum")
+        if self.rag_min_evidence_sources > self.rag_max_sources:
+            raise ValueError("RAG minimum evidence sources must fit the source limit")
         if self.embedding_enabled and not self.database_url.startswith("postgresql"):
             raise ValueError(
                 "enabled embeddings require a PostgreSQL pgvector database"
             )
+        if self.rag_enabled and not self.embedding_enabled:
+            raise ValueError("enabled RAG requires enabled semantic retrieval")
+        if self.rag_enabled and not self.llm_enabled:
+            raise ValueError("enabled RAG requires an enabled LLM provider")
         return self
 
 

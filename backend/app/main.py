@@ -16,6 +16,10 @@ from backend.app.llm.policy import StageOneResponsePolicy
 from backend.app.llm.prompt_builder import PromptBuilder
 from backend.app.llm.provider import LLMProvider, OpenAICompatibleProvider
 from backend.app.llm.service import ChatService
+from backend.app.rag.context import ContextBuilder
+from backend.app.rag.grounding import LexicalGroundedOutputGuard
+from backend.app.rag.prompt_builder import RagPromptBuilder
+from backend.app.rag.service import RagService
 
 
 def create_app(
@@ -37,8 +41,9 @@ def create_app(
         path=f"{resolved_settings.api_prefix}/api/documents",
         max_body_size_bytes=resolved_settings.ingestion_max_request_size_bytes,
     )
+    llm_provider = provider or OpenAICompatibleProvider(resolved_settings)
     application.state.chat_service = ChatService(
-        provider=provider or OpenAICompatibleProvider(resolved_settings),
+        provider=llm_provider,
         prompt_builder=PromptBuilder(),
         response_policy=StageOneResponsePolicy(),
         max_retries=resolved_settings.llm_max_retries,
@@ -72,6 +77,22 @@ def create_app(
         model=resolved_settings.embedding_model,
         dimensions=resolved_settings.embedding_dimensions,
         max_top_k=resolved_settings.retrieval_max_top_k,
+    )
+    application.state.rag_service = RagService(
+        retrieval_service=application.state.retrieval_service,
+        provider=llm_provider,
+        prompt_builder=RagPromptBuilder(),
+        context_builder=ContextBuilder(
+            max_characters=resolved_settings.rag_max_context_characters,
+            max_estimated_tokens=resolved_settings.rag_max_context_tokens,
+            max_sources=resolved_settings.rag_max_sources,
+        ),
+        grounded_output_guard=LexicalGroundedOutputGuard(),
+        retrieval_top_k=resolved_settings.rag_retrieval_top_k,
+        min_evidence_score=resolved_settings.rag_min_evidence_score,
+        min_evidence_sources=resolved_settings.rag_min_evidence_sources,
+        max_retries=resolved_settings.llm_max_retries,
+        retry_delay_seconds=resolved_settings.llm_retry_delay_seconds,
     )
     register_exception_handlers(application)
     application.include_router(api_router, prefix=resolved_settings.api_prefix)

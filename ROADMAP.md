@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 3 — Embeddings + Vector Retrieval**. A stage may start only after
+The active stage is **Stage 4 — Basic RAG**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -48,7 +48,7 @@ Stage 9 is complete.
 - **Non-goals:** OCR, embeddings, retrieval, real confidential data, or broad format
   coverage.
 
-## Stage 3 — Embeddings + Vector Retrieval (Active)
+## Stage 3 — Embeddings + Vector Retrieval
 
 - **Objective:** Add measurable semantic retrieval over authorized demo content.
 - **Deliverables:** Embedding protocol and one provider; pgvector migration; batch
@@ -59,7 +59,7 @@ Stage 9 is complete.
   migration/re-embedding strategy is documented.
 - **Non-goals:** Generation, hybrid search, reranking, or protected content.
 
-## Stage 4 — Basic RAG
+## Stage 4 — Basic RAG (Active)
 
 - **Objective:** Produce evidence-bounded answers from semantic retrieval.
 - **Deliverables:** Query embedding, retrieval, context/prompt builders, generation,

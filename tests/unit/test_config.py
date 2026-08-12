@@ -50,3 +50,27 @@ def test_enabled_embeddings_require_postgresql_pgvector_path() -> None:
         Settings(
             embedding_enabled=True, database_url="sqlite:///./ekaa.db", _env_file=None
         )
+
+
+def test_enabled_rag_requires_enabled_retrieval_and_llm() -> None:
+    with pytest.raises(ValidationError):
+        Settings(rag_enabled=True, _env_file=None)
+
+    settings = Settings(
+        rag_enabled=True,
+        embedding_enabled=True,
+        database_url="postgresql+psycopg://test:test@localhost/test",
+        llm_enabled=True,
+        llm_api_key="not-a-real-secret",
+        llm_model="test-model",
+        _env_file=None,
+    )
+
+    assert settings.rag_enabled is True
+
+
+def test_rag_bounds_must_fit_retrieval_and_context_limits() -> None:
+    with pytest.raises(ValidationError):
+        Settings(rag_retrieval_top_k=21, retrieval_max_top_k=20, _env_file=None)
+    with pytest.raises(ValidationError):
+        Settings(rag_min_evidence_sources=2, rag_max_sources=1, _env_file=None)

@@ -15,7 +15,7 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 3 — Embeddings + Vector Retrieval. Do not implement generation, RAG answers,
+Stage 4 — Basic RAG. Do not implement claim-level citation UX or validation,
 hybrid/keyword search, reranking, authentication, tools, agents, chat memory, or
 frontend functionality.
 
