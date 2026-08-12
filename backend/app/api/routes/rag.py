@@ -1,5 +1,7 @@
 """HTTP transport for Stage 4 evidence-bounded answers."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -14,7 +16,7 @@ from backend.app.rag.errors import (
     RagProviderRejectedError,
     RagUnavailableError,
 )
-from backend.app.rag.models import RagAnswerResult, RagSource
+from backend.app.rag.models import Citation, CitationClaim, RagAnswerResult
 from backend.app.rag.service import RagService
 
 router = APIRouter(tags=["rag"])
@@ -36,17 +38,30 @@ class RagUsageResponse(BaseModel):
     total_tokens: int = Field(ge=0)
 
 
-class RagSourceResponse(BaseModel):
-    """Server-derived provenance; Stage 5 adds claim-level citation UX."""
+class CitationResponse(BaseModel):
+    """A server-built reference into a source selected for this exact request."""
 
     model_config = ConfigDict(frozen=True)
 
+    citation_id: str
     document_id: str
     document_name: str
     chunk_id: str
     chunk_index: int = Field(ge=0)
+    excerpt: str = Field(min_length=1)
     page_number: int | None
     section: str | None
+
+
+class CitationClaimResponse(BaseModel):
+    """UI-ready factual claim status; unsupported text is never an answer."""
+
+    model_config = ConfigDict(frozen=True)
+
+    text: str
+    status: Literal["supported", "unsupported"]
+    citation_ids: list[str]
+    unsupported_reason: str | None
 
 
 class RagResponse(BaseModel):
@@ -55,11 +70,16 @@ class RagResponse(BaseModel):
     answer: str
     model: str
     usage: RagUsageResponse
-    sources: list[RagSourceResponse]
+    claims: list[CitationClaimResponse]
+    citations: list[CitationResponse]
 
 
-def _to_source_response(source: RagSource) -> RagSourceResponse:
-    return RagSourceResponse(**source.__dict__)
+def _to_citation_response(citation: Citation) -> CitationResponse:
+    return CitationResponse(**citation.__dict__)
+
+
+def _to_claim_response(claim: CitationClaim) -> CitationClaimResponse:
+    return CitationClaimResponse(**claim.__dict__)
 
 
 def _to_response(result: RagAnswerResult) -> RagResponse:
@@ -67,7 +87,8 @@ def _to_response(result: RagAnswerResult) -> RagResponse:
         answer=result.answer,
         model=result.model,
         usage=RagUsageResponse(**result.usage.model_dump()),
-        sources=[_to_source_response(source) for source in result.sources],
+        claims=[_to_claim_response(claim) for claim in result.claims],
+        citations=[_to_citation_response(citation) for citation in result.citations],
     )
 
 

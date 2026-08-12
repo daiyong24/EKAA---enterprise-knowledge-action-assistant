@@ -74,3 +74,13 @@ def test_rag_bounds_must_fit_retrieval_and_context_limits() -> None:
         Settings(rag_retrieval_top_k=21, retrieval_max_top_k=20, _env_file=None)
     with pytest.raises(ValidationError):
         Settings(rag_min_evidence_sources=2, rag_max_sources=1, _env_file=None)
+
+
+def test_citation_limits_have_safe_bounded_defaults() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.citation_max_claims == 10
+    assert settings.citation_max_excerpt_characters == 500
+
+    with pytest.raises(ValidationError):
+        Settings(citation_max_claim_characters=19, _env_file=None)

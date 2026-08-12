@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from collections.abc import Awaitable, Callable
 from typing import Protocol
 
@@ -18,14 +17,18 @@ from backend.app.llm.errors import (
 )
 from backend.app.llm.models import ChatPrompt, ChatResult, TokenUsage
 from backend.app.llm.provider import LLMProvider
+from backend.app.rag.citations import (
+    CitationOutputError,
+    CitationOutputParser,
+    CitationValidator,
+)
 from backend.app.rag.context import ContextBuilder
 from backend.app.rag.errors import (
     RagOutputError,
     RagProviderRejectedError,
     RagUnavailableError,
 )
-from backend.app.rag.grounding import GroundedOutputGuard, LexicalGroundedOutputGuard
-from backend.app.rag.models import RagAnswerResult
+from backend.app.rag.models import Citation, CitationClaim, RagAnswerResult
 from backend.app.rag.prompt_builder import RagPromptBuilder
 
 logger = logging.getLogger(__name__)
@@ -34,10 +37,6 @@ INSUFFICIENT_EVIDENCE_ANSWER = (
     "Insufficient information is available in the knowledge base."
 )
 INSUFFICIENT_EVIDENCE_MODEL = "ekaa-rag-evidence-policy"
-_MODEL_SOURCE_LABEL = re.compile(
-    r"\[(?:source|citation)\s*:[^\]]+\]|(?:^|\n)\s*(?:source|citation)\s*:\s*\S+",
-    flags=re.IGNORECASE,
-)
 
 
 class RetrievalService(Protocol):
@@ -56,7 +55,8 @@ class RagService:
         provider: LLMProvider,
         prompt_builder: RagPromptBuilder,
         context_builder: ContextBuilder,
-        grounded_output_guard: GroundedOutputGuard | None = None,
+        citation_output_parser: CitationOutputParser | None = None,
+        citation_validator: CitationValidator | None = None,
         retrieval_top_k: int,
         min_evidence_score: float,
         min_evidence_sources: int,
@@ -68,8 +68,11 @@ class RagService:
         self._provider = provider
         self._prompt_builder = prompt_builder
         self._context_builder = context_builder
-        self._grounded_output_guard = (
-            grounded_output_guard or LexicalGroundedOutputGuard()
+        self._citation_output_parser = citation_output_parser or CitationOutputParser(
+            max_claims=10, max_claim_characters=1_000
+        )
+        self._citation_validator = citation_validator or CitationValidator(
+            max_excerpt_characters=500
         )
         self._retrieval_top_k = retrieval_top_k
         self._min_evidence_score = min_evidence_score
@@ -87,17 +90,26 @@ class RagService:
             return self._insufficient_evidence_result()
         prompt = self._prompt_builder.build(question=question, context=context)
         result = await self._complete_with_retries(prompt)
-        self._reject_model_owned_source_labels(result.answer)
-        if not self._grounded_output_guard.is_supported(
-            answer=result.answer, context=context.text
-        ):
-            logger.warning("rag_generation_rejected_unsupported_output")
+        try:
+            proposed_claims = self._citation_output_parser.parse(result.answer)
+        except CitationOutputError as exc:
+            raise RagOutputError("provider returned invalid citation output") from exc
+        if not proposed_claims:
             return self._insufficient_evidence_result(usage=result.usage)
+        claims, citations = self._citation_validator.validate(
+            proposed_claims, context=context
+        )
+        if not all(claim.status == "supported" for claim in claims):
+            logger.warning("rag_generation_rejected_unsupported_claim")
+            return self._unsupported_claims_result(
+                claims=claims, citations=citations, usage=result.usage
+            )
         return RagAnswerResult(
-            answer=result.answer,
+            answer="\n".join(claim.text for claim in claims),
             model=result.model,
             usage=result.usage,
-            sources=context.sources,
+            claims=claims,
+            citations=citations,
         )
 
     def _sufficient_chunks(self, chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
@@ -111,15 +123,25 @@ class RagService:
             answer=INSUFFICIENT_EVIDENCE_ANSWER,
             model=INSUFFICIENT_EVIDENCE_MODEL,
             usage=usage or TokenUsage(input_tokens=0, output_tokens=0, total_tokens=0),
-            sources=(),
+            claims=(),
+            citations=(),
         )
 
     @staticmethod
-    def _reject_model_owned_source_labels(answer: str) -> None:
-        """Keep source references server-owned until Stage 5 validation exists."""
-        if _MODEL_SOURCE_LABEL.search(answer):
-            logger.warning("rag_generation_rejected_model_source_label")
-            raise RagOutputError("provider emitted a model-owned source label")
+    def _unsupported_claims_result(
+        *,
+        claims: tuple[CitationClaim, ...],
+        citations: tuple[Citation, ...],
+        usage: TokenUsage,
+    ) -> RagAnswerResult:
+        """Do not present a partly unsupported generated answer as factual output."""
+        return RagAnswerResult(
+            answer=INSUFFICIENT_EVIDENCE_ANSWER,
+            model=INSUFFICIENT_EVIDENCE_MODEL,
+            usage=usage,
+            claims=claims,
+            citations=citations,
+        )
 
     async def _complete_with_retries(self, prompt: ChatPrompt) -> ChatResult:
         for attempt in range(self._max_retries + 1):

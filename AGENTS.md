@@ -15,9 +15,8 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 4 — Basic RAG. Do not implement claim-level citation UX or validation,
-hybrid/keyword search, reranking, authentication, tools, agents, chat memory, or
-frontend functionality.
+Stage 5 — Citation & Grounding. Do not implement hybrid/keyword search, reranking,
+authentication, tools, agents, chat memory, or frontend functionality.
 
 ## Engineering Rules
 

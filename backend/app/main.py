@@ -16,8 +16,8 @@ from backend.app.llm.policy import StageOneResponsePolicy
 from backend.app.llm.prompt_builder import PromptBuilder
 from backend.app.llm.provider import LLMProvider, OpenAICompatibleProvider
 from backend.app.llm.service import ChatService
+from backend.app.rag.citations import CitationOutputParser, CitationValidator
 from backend.app.rag.context import ContextBuilder
-from backend.app.rag.grounding import LexicalGroundedOutputGuard
 from backend.app.rag.prompt_builder import RagPromptBuilder
 from backend.app.rag.service import RagService
 
@@ -87,7 +87,13 @@ def create_app(
             max_estimated_tokens=resolved_settings.rag_max_context_tokens,
             max_sources=resolved_settings.rag_max_sources,
         ),
-        grounded_output_guard=LexicalGroundedOutputGuard(),
+        citation_output_parser=CitationOutputParser(
+            max_claims=resolved_settings.citation_max_claims,
+            max_claim_characters=resolved_settings.citation_max_claim_characters,
+        ),
+        citation_validator=CitationValidator(
+            max_excerpt_characters=resolved_settings.citation_max_excerpt_characters
+        ),
         retrieval_top_k=resolved_settings.rag_retrieval_top_k,
         min_evidence_score=resolved_settings.rag_min_evidence_score,
         min_evidence_sources=resolved_settings.rag_min_evidence_sources,

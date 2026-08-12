@@ -1,3 +1,4 @@
+import json
 from collections.abc import Sequence
 from math import ceil
 
@@ -73,7 +74,9 @@ class SleepRecorder:
 
 def _answer(text: str = "The recovery target is four hours.") -> ChatResult:
     return ChatResult(
-        answer=text,
+        answer=json.dumps(
+            {"claims": [{"text": text, "citation_chunk_ids": ["chunk-1"]}]}
+        ),
         model="fake-rag-model",
         usage=TokenUsage(input_tokens=21, output_tokens=8, total_tokens=29),
     )
@@ -111,12 +114,13 @@ async def test_grounded_answer_uses_only_selected_retrieval_context() -> None:
     result = await _service(retrieval, provider).answer("What is the recovery target?")
 
     assert result.answer == "The recovery target is four hours."
-    assert [source.chunk_id for source in result.sources] == ["chunk-1"]
+    assert [citation.chunk_id for citation in result.citations] == ["chunk-1"]
     assert retrieval.calls == [("What is the recovery target?", 3)]
     assert "The synthetic recovery target is four hours." in provider.prompts[0].user
     assert "only when the supplied retrieved evidence directly supports" in (
         provider.prompts[0].system
     )
+    assert '"citation_chunk_ids"' in provider.prompts[0].system
 
 
 @pytest.mark.anyio
@@ -127,9 +131,32 @@ async def test_no_evidence_refuses_without_provider_call() -> None:
     result = await _service(retrieval, provider).answer("What is not in the runbook?")
 
     assert result.answer == INSUFFICIENT_EVIDENCE_ANSWER
-    assert result.sources == ()
+    assert result.claims == ()
+    assert result.citations == ()
     assert result.usage == TokenUsage(input_tokens=0, output_tokens=0, total_tokens=0)
     assert provider.prompts == []
+
+
+@pytest.mark.anyio
+async def test_empty_provider_claim_proposal_returns_insufficient_information() -> None:
+    retrieval = FakeRetrievalService([_chunk()])
+    provider = FakeProvider(
+        [
+            ChatResult(
+                answer='{"claims":[]}',
+                model="fake-rag-model",
+                usage=TokenUsage(input_tokens=21, output_tokens=3, total_tokens=24),
+            )
+        ]
+    )
+
+    result = await _service(retrieval, provider).answer("What is the target?")
+
+    assert result.answer == INSUFFICIENT_EVIDENCE_ANSWER
+    assert result.model == "ekaa-rag-evidence-policy"
+    assert result.usage == TokenUsage(input_tokens=21, output_tokens=3, total_tokens=24)
+    assert result.claims == ()
+    assert result.citations == ()
 
 
 def test_context_builder_enforces_whole_chunk_character_and_token_limits() -> None:
@@ -256,9 +283,17 @@ async def test_permanent_or_malformed_provider_failures_are_not_retried() -> Non
 
 
 @pytest.mark.anyio
-async def test_model_owned_source_label_is_rejected_before_response() -> None:
+async def test_non_json_provider_output_is_rejected_before_response() -> None:
     retrieval = FakeRetrievalService([_chunk()])
-    provider = FakeProvider([_answer("Answer [source: fabricated-chunk-id].")])
+    provider = FakeProvider(
+        [
+            ChatResult(
+                answer="Answer [source: fabricated-chunk-id].",
+                model="fake-rag-model",
+                usage=TokenUsage(input_tokens=1, output_tokens=1, total_tokens=2),
+            )
+        ]
+    )
 
     with pytest.raises(RagOutputError):
         await _service(retrieval, provider).answer("Question?")
@@ -274,5 +309,6 @@ async def test_demonstrably_unsupported_provider_answer_becomes_refusal() -> Non
     assert result.answer == INSUFFICIENT_EVIDENCE_ANSWER
     assert result.model == "ekaa-rag-evidence-policy"
     assert result.usage == TokenUsage(input_tokens=21, output_tokens=8, total_tokens=29)
-    assert result.sources == ()
+    assert result.citations == ()
+    assert result.claims[0].status == "unsupported"
     assert len(provider.prompts) == 1

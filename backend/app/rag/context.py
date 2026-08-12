@@ -31,6 +31,7 @@ class ContextBuilder:
     def build(self, chunks: list[RetrievedChunk]) -> ContextWindow:
         blocks: list[str] = []
         sources: list[RagSource] = []
+        selected_chunks: list[RetrievedChunk] = []
         for chunk in chunks:
             if len(sources) >= self._max_sources:
                 break
@@ -45,12 +46,14 @@ class ContextBuilder:
                 continue
             blocks.append(block)
             sources.append(self._to_source(chunk))
+            selected_chunks.append(chunk)
         text = "\n\n".join(blocks)
         return ContextWindow(
             text=text,
             sources=tuple(sources),
             character_count=len(text),
             estimated_token_count=self._estimate_tokens(text),
+            selected_chunks=tuple(selected_chunks),
         )
 
     @staticmethod

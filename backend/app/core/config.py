@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     rag_max_sources: int = Field(default=5, ge=1, le=10)
     rag_max_context_characters: int = Field(default=6_000, ge=100, le=40_000)
     rag_max_context_tokens: int = Field(default=1_500, ge=25, le=10_000)
+    citation_max_claims: int = Field(default=10, ge=1, le=30)
+    citation_max_claim_characters: int = Field(default=1_000, ge=20, le=4_000)
+    citation_max_excerpt_characters: int = Field(default=500, ge=50, le=2_000)
     ingestion_max_file_size_bytes: int = Field(
         default=10 * 1024 * 1024, gt=0, le=50 * 1024 * 1024
     )
