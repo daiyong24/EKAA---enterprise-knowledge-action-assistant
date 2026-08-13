@@ -5,12 +5,13 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 6 — Hybrid Retrieval.
+Stage 7 — Reranking.
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
 safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into
 normalized relational chunks, provider-neutral embeddings and PostgreSQL/pgvector
-semantic retrieval, PostgreSQL full-text hybrid retrieval, bounded
+semantic retrieval, PostgreSQL full-text hybrid retrieval, bounded deterministic
+reranking for RAG context selection, bounded
 retrieval-augmented generation, and claim-level citation validation over that
 evidence. LLM and RAG are disabled unless explicitly configured. Authentication,
 frontend, tools, agents, and chat memory are intentionally absent.
@@ -128,6 +129,21 @@ never echoes the query or adds unselected document information. Identifier-shape
 tokens (such as `INC-1042`) get an exact lexical candidate path before deterministic
 rank fusion. The same retrieval seam is used by RAG, so citations still derive only
 from final selected chunks. See `docs/STAGE_6_HYBRID_RETRIEVAL_DESIGN.md`.
+
+## Stage 7 Reranking
+
+Stage 7 optionally reranks only the already-qualified, bounded hybrid candidates
+used to build RAG context. Set `EKAA_RERANKING_ENABLED=true` only together with
+enabled hybrid retrieval. The included `deterministic_overlap` provider is local,
+reproducible, and has no provider cost; it orders candidates by the fraction of
+unique normalized query terms present in each candidate. It is a test/demo baseline,
+not a production relevance model.
+
+Reranking never changes retrieval evidence confidence, adds sources, bypasses the
+existing context character/token/source limits, or controls citations. A timeout,
+provider failure, or malformed reranker response falls back to the original stable
+hybrid order. See `docs/STAGE_7_RERANKING_DESIGN.md` for the tested comparison and
+limitations.
 
 ## Quality Checks
 

@@ -12,6 +12,8 @@ from backend.app.main import create_app
 from backend.app.rag.context import ContextBuilder
 from backend.app.rag.prompt_builder import RagPromptBuilder
 from backend.app.rag.service import RagService
+from backend.app.reranking.models import RerankBatch, RerankInput, RerankScore
+from backend.app.reranking.service import RerankingService
 
 
 class FakeRetrievalService:
@@ -32,6 +34,18 @@ class FakeProvider:
         if isinstance(self.outcome, Exception):
             raise self.outcome
         return self.outcome
+
+
+class FakeReranker:
+    model = "fake-reranker"
+
+    def __init__(self, scores: tuple[RerankScore, ...]) -> None:
+        self.scores = scores
+        self.calls: list[tuple[str, tuple[RerankInput, ...]]] = []
+
+    async def rerank(self, *, query: str, candidates: list[RerankInput]) -> RerankBatch:
+        self.calls.append((query, tuple(candidates)))
+        return RerankBatch(model=self.model, scores=self.scores)
 
 
 class HybridSemanticFixture:
@@ -309,6 +323,94 @@ async def test_hybrid_lexical_only_non_exact_low_score_remains_safe() -> None:
     assert provider.calls == []
     assert payload["claims"] == []
     assert payload["citations"] == []
+
+
+@pytest.mark.anyio
+async def test_reranking_selects_final_context_with_existing_limits() -> None:
+    first = _source()
+    second = RetrievedChunk(
+        document_id="doc-second",
+        document_name="second.md",
+        chunk_id="chunk-second",
+        chunk_index=1,
+        content="The recovery target is four hours.",
+        score=0.9,
+        page_number=None,
+        section="Recovery",
+    )
+    provider = FakeProvider(
+        _result(
+            "The recovery target is four hours.", citation_chunk_ids=["chunk-second"]
+        )
+    )
+    reranker = FakeReranker(
+        (RerankScore("chunk-real", 0.1), RerankScore("chunk-second", 0.9))
+    )
+    app = create_app(_settings(), provider)
+    app.state.rag_service = RagService(
+        retrieval_service=FakeRetrievalService([first, second]),
+        provider=provider,
+        prompt_builder=RagPromptBuilder(),
+        context_builder=ContextBuilder(
+            max_characters=1_000, max_estimated_tokens=300, max_sources=1
+        ),
+        reranking_service=RerankingService(
+            provider=reranker,
+            timeout_seconds=0.1,  # type: ignore[arg-type]
+        ),
+        retrieval_top_k=1,
+        rerank_candidate_count=2,
+        min_evidence_score=0.5,
+        min_evidence_sources=1,
+        max_retries=0,
+        retry_delay_seconds=0,
+    )
+
+    status, payload = await _post(app, {"question": "What is the recovery target?"})
+
+    assert status == 200
+    assert reranker.calls
+    assert payload["citations"][0]["chunk_id"] == "chunk-second"  # type: ignore[index]
+    assert "chunk-real" not in provider.calls[0].user
+    assert "chunk-second" in provider.calls[0].user
+
+
+@pytest.mark.anyio
+async def test_below_threshold_evidence_skips_reranker_and_provider() -> None:
+    provider = FakeProvider(_result("unused"))
+    reranker = FakeReranker((RerankScore("chunk-real", 1.0),))
+    app = create_app(_settings(), provider)
+    app.state.rag_service = RagService(
+        retrieval_service=FakeRetrievalService([_source(score=0.49)]),
+        provider=provider,
+        prompt_builder=RagPromptBuilder(),
+        context_builder=ContextBuilder(
+            max_characters=1_000, max_estimated_tokens=300, max_sources=3
+        ),
+        reranking_service=RerankingService(
+            provider=reranker,
+            timeout_seconds=0.1,  # type: ignore[arg-type]
+        ),
+        retrieval_top_k=1,
+        rerank_candidate_count=1,
+        min_evidence_score=0.5,
+        min_evidence_sources=1,
+        max_retries=0,
+        retry_delay_seconds=0,
+    )
+
+    status, payload = await _post(app, {"question": "Target?"})
+
+    assert status == 200
+    assert payload == {
+        "answer": "Insufficient information is available in the knowledge base.",
+        "model": "ekaa-rag-evidence-policy",
+        "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+        "claims": [],
+        "citations": [],
+    }
+    assert reranker.calls == []
+    assert provider.calls == []
 
 
 @pytest.mark.anyio

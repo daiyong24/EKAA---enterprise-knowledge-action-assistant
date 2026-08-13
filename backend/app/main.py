@@ -25,12 +25,18 @@ from backend.app.rag.citations import CitationOutputParser, CitationValidator
 from backend.app.rag.context import ContextBuilder
 from backend.app.rag.prompt_builder import RagPromptBuilder
 from backend.app.rag.service import RagService
+from backend.app.reranking.provider import (
+    DeterministicOverlapReranker,
+    RerankerProvider,
+)
+from backend.app.reranking.service import RerankingService
 
 
 def create_app(
     settings: Settings | None = None,
     provider: LLMProvider | None = None,
     embedding_provider: EmbeddingProvider | None = None,
+    reranker_provider: RerankerProvider | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
@@ -96,6 +102,12 @@ def create_app(
             rrf_rank_constant=resolved_settings.hybrid_rrf_rank_constant,
             max_top_k=resolved_settings.retrieval_max_top_k,
         )
+    reranking_service = None
+    if resolved_settings.reranking_enabled:
+        reranking_service = RerankingService(
+            provider=reranker_provider or DeterministicOverlapReranker(),
+            timeout_seconds=resolved_settings.reranking_timeout_seconds,
+        )
     application.state.rag_service = RagService(
         retrieval_service=application.state.retrieval_service,
         provider=llm_provider,
@@ -105,6 +117,7 @@ def create_app(
             max_estimated_tokens=resolved_settings.rag_max_context_tokens,
             max_sources=resolved_settings.rag_max_sources,
         ),
+        reranking_service=reranking_service,
         citation_output_parser=CitationOutputParser(
             max_claims=resolved_settings.citation_max_claims,
             max_claim_characters=resolved_settings.citation_max_claim_characters,
@@ -113,6 +126,11 @@ def create_app(
             max_excerpt_characters=resolved_settings.citation_max_excerpt_characters
         ),
         retrieval_top_k=resolved_settings.rag_retrieval_top_k,
+        rerank_candidate_count=(
+            resolved_settings.reranking_candidate_count
+            if reranking_service is not None
+            else None
+        ),
         min_evidence_score=resolved_settings.rag_min_evidence_score,
         min_evidence_sources=resolved_settings.rag_min_evidence_sources,
         max_retries=resolved_settings.llm_max_retries,

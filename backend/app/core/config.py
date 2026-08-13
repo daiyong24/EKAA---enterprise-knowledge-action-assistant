@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     hybrid_semantic_candidate_count: int = Field(default=12, ge=1, le=50)
     hybrid_lexical_candidate_count: int = Field(default=12, ge=1, le=50)
     hybrid_rrf_rank_constant: int = Field(default=60, ge=1, le=1_000)
+    reranking_enabled: bool = False
+    reranking_provider: Literal["deterministic_overlap"] = "deterministic_overlap"
+    reranking_candidate_count: int = Field(default=12, ge=1, le=50)
+    reranking_timeout_seconds: float = Field(default=1.0, gt=0, le=10)
     rag_enabled: bool = False
     rag_retrieval_top_k: int = Field(default=5, ge=1, le=50)
     rag_min_evidence_score: float = Field(default=0.2, ge=-1, le=1)
@@ -97,6 +101,10 @@ class Settings(BaseSettings):
             )
         if self.hybrid_lexical_candidate_count > self.retrieval_max_top_k:
             raise ValueError("hybrid lexical candidate count exceeds retrieval maximum")
+        if self.reranking_candidate_count > self.retrieval_max_top_k:
+            raise ValueError("reranking candidate count exceeds retrieval maximum")
+        if self.reranking_candidate_count < self.rag_retrieval_top_k:
+            raise ValueError("reranking candidate count must cover RAG retrieval top K")
         if self.rag_min_evidence_sources > self.rag_max_sources:
             raise ValueError("RAG minimum evidence sources must fit the source limit")
         if self.embedding_enabled and not self.database_url.startswith("postgresql"):
@@ -107,6 +115,8 @@ class Settings(BaseSettings):
             raise ValueError(
                 "enabled hybrid retrieval requires enabled semantic retrieval"
             )
+        if self.reranking_enabled and not self.hybrid_retrieval_enabled:
+            raise ValueError("enabled reranking requires enabled hybrid retrieval")
         if self.rag_enabled and not self.embedding_enabled:
             raise ValueError("enabled RAG requires enabled semantic retrieval")
         if self.rag_enabled and not self.llm_enabled:

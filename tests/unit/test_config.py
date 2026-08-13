@@ -103,3 +103,29 @@ def test_hybrid_retrieval_requires_semantic_retrieval_and_bounded_candidates() -
         _env_file=None,
     )
     assert settings.hybrid_rrf_rank_constant == 60
+
+
+def test_reranking_requires_hybrid_retrieval_and_bounded_candidate_context() -> None:
+    with pytest.raises(ValidationError):
+        Settings(reranking_enabled=True, _env_file=None)
+    with pytest.raises(ValidationError):
+        Settings(
+            reranking_candidate_count=4,
+            rag_retrieval_top_k=5,
+            _env_file=None,
+        )
+    with pytest.raises(ValidationError):
+        Settings(
+            reranking_candidate_count=21,
+            retrieval_max_top_k=20,
+            _env_file=None,
+        )
+
+    settings = Settings(
+        reranking_enabled=True,
+        hybrid_retrieval_enabled=True,
+        embedding_enabled=True,
+        database_url="postgresql+psycopg://test:test@localhost/test",
+        _env_file=None,
+    )
+    assert settings.reranking_timeout_seconds == 1.0

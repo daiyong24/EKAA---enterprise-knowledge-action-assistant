@@ -15,8 +15,8 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 6 — Hybrid Retrieval. Do not implement reranking, authentication, tools,
-agents, chat memory, or frontend functionality.
+Stage 7 — Reranking. Do not implement authentication, tools, agents, chat memory,
+or frontend functionality.
 
 ## Engineering Rules
 

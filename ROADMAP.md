@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 6 — Hybrid Retrieval**. A stage may start only after
+The active stage is **Stage 7 — Reranking**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -81,7 +81,7 @@ Stage 9 is complete.
   citation quality baseline is recorded.
 - **Non-goals:** Hybrid retrieval or automated judge as sole authority.
 
-## Stage 6 — Hybrid Retrieval (Active)
+## Stage 6 — Hybrid Retrieval
 
 - **Objective:** Combine semantic and PostgreSQL full-text retrieval.
 - **Deliverables:** Lexical index/search, score normalization or rank fusion, exact-ID
@@ -92,7 +92,7 @@ Stage 9 is complete.
   mixed-query fixture without unacceptable latency regression.
 - **Non-goals:** Reranking or production-scale tuning.
 
-## Stage 7 — Reranking
+## Stage 7 — Reranking (Active)
 
 - **Objective:** Improve final context selection with measured reranking.
 - **Deliverables:** Reranker protocol/provider, candidate-to-context pipeline,

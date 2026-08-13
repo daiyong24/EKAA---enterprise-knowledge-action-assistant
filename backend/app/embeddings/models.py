@@ -46,6 +46,10 @@ class RetrievedChunk:
     # request-local retrieval metadata so callers can inspect fusion behavior
     # without accidentally using it for the Stage 4 evidence threshold.
     fusion_score: float | None = None
+    # Stage 7 uses this value only to order an already-qualified, bounded RAG
+    # candidate set.  It is not exposed by the retrieval API and never replaces
+    # ``score``, which remains the evidence-confidence value for the RAG gate.
+    rerank_score: float | None = None
 
 
 @dataclass(frozen=True)

@@ -30,6 +30,7 @@ from backend.app.rag.errors import (
 )
 from backend.app.rag.models import Citation, CitationClaim, RagAnswerResult
 from backend.app.rag.prompt_builder import RagPromptBuilder
+from backend.app.reranking.service import RerankingService
 
 logger = logging.getLogger(__name__)
 Sleep = Callable[[float], Awaitable[None]]
@@ -55,9 +56,11 @@ class RagService:
         provider: LLMProvider,
         prompt_builder: RagPromptBuilder,
         context_builder: ContextBuilder,
+        reranking_service: RerankingService | None = None,
         citation_output_parser: CitationOutputParser | None = None,
         citation_validator: CitationValidator | None = None,
         retrieval_top_k: int,
+        rerank_candidate_count: int | None = None,
         min_evidence_score: float,
         min_evidence_sources: int,
         max_retries: int,
@@ -68,6 +71,7 @@ class RagService:
         self._provider = provider
         self._prompt_builder = prompt_builder
         self._context_builder = context_builder
+        self._reranking_service = reranking_service
         self._citation_output_parser = citation_output_parser or CitationOutputParser(
             max_claims=10, max_claim_characters=1_000
         )
@@ -75,6 +79,7 @@ class RagService:
             max_excerpt_characters=500
         )
         self._retrieval_top_k = retrieval_top_k
+        self._rerank_candidate_count = rerank_candidate_count or retrieval_top_k
         self._min_evidence_score = min_evidence_score
         self._min_evidence_sources = min_evidence_sources
         self._max_retries = max_retries
@@ -83,9 +88,14 @@ class RagService:
 
     async def answer(self, question: str) -> RagAnswerResult:
         retrieved = self._retrieval_service.search(
-            query=question, top_k=self._retrieval_top_k
+            query=question, top_k=self._rerank_candidate_count
         )
-        context = self._context_builder.build(self._sufficient_chunks(retrieved))
+        qualified = self._sufficient_chunks(retrieved)
+        if self._reranking_service is not None:
+            qualified = await self._reranking_service.rerank(
+                query=question, candidates=qualified
+            )
+        context = self._context_builder.build(qualified[: self._retrieval_top_k])
         if len(context.sources) < self._min_evidence_sources:
             return self._insufficient_evidence_result()
         prompt = self._prompt_builder.build(question=question, context=context)
