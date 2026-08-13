@@ -84,3 +84,22 @@ def test_citation_limits_have_safe_bounded_defaults() -> None:
 
     with pytest.raises(ValidationError):
         Settings(citation_max_claim_characters=19, _env_file=None)
+
+
+def test_hybrid_retrieval_requires_semantic_retrieval_and_bounded_candidates() -> None:
+    with pytest.raises(ValidationError):
+        Settings(hybrid_retrieval_enabled=True, _env_file=None)
+    with pytest.raises(ValidationError):
+        Settings(
+            hybrid_semantic_candidate_count=21,
+            retrieval_max_top_k=20,
+            _env_file=None,
+        )
+
+    settings = Settings(
+        hybrid_retrieval_enabled=True,
+        embedding_enabled=True,
+        database_url="postgresql+psycopg://test:test@localhost/test",
+        _env_file=None,
+    )
+    assert settings.hybrid_rrf_rank_constant == 60

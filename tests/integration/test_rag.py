@@ -4,6 +4,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from backend.app.core.config import Settings
+from backend.app.embeddings.hybrid import HybridRetrievalService
 from backend.app.embeddings.models import RetrievedChunk
 from backend.app.llm.errors import ProviderTimeoutError
 from backend.app.llm.models import ChatPrompt, ChatResult, TokenUsage
@@ -31,6 +32,22 @@ class FakeProvider:
         if isinstance(self.outcome, Exception):
             raise self.outcome
         return self.outcome
+
+
+class HybridSemanticFixture:
+    def __init__(self, sources: list[RetrievedChunk]) -> None:
+        self.sources = sources
+
+    def search(self, **_: object) -> list[RetrievedChunk]:
+        return self.sources
+
+
+class HybridLexicalFixture:
+    def __init__(self, sources: list[RetrievedChunk]) -> None:
+        self.sources = sources
+
+    def search_with_metadata(self, **_: object) -> tuple[list[RetrievedChunk], int]:
+        return self.sources, 0
 
 
 def _source(*, score: float = 0.95) -> RetrievedChunk:
@@ -177,6 +194,121 @@ async def test_rag_returns_grounded_answer_and_server_derived_citations() -> Non
             }
         ],
     }
+
+
+@pytest.mark.anyio
+async def test_hybrid_evidence_score_reaches_rag_provider_and_citation_api() -> None:
+    source = _source(score=0.95)
+    hybrid = HybridRetrievalService(
+        semantic_service=HybridSemanticFixture([source]),  # type: ignore[arg-type]
+        lexical_service=HybridLexicalFixture([source]),  # type: ignore[arg-type]
+        semantic_candidate_count=1,
+        lexical_candidate_count=1,
+        rrf_rank_constant=60,
+        max_top_k=20,
+    )
+    provider = FakeProvider(_result("The recovery target is four hours."))
+    app = create_app(_settings(), provider)
+    app.state.rag_service = RagService(
+        retrieval_service=hybrid,
+        provider=provider,
+        prompt_builder=RagPromptBuilder(),
+        context_builder=ContextBuilder(
+            max_characters=1_000, max_estimated_tokens=300, max_sources=3
+        ),
+        retrieval_top_k=3,
+        min_evidence_score=0.2,
+        min_evidence_sources=1,
+        max_retries=0,
+        retry_delay_seconds=0,
+    )
+
+    status, payload = await _post(app, {"question": "What is the target?"})
+
+    assert status == 200
+    assert provider.calls
+    assert payload["claims"] == [
+        {
+            "text": "The recovery target is four hours.",
+            "status": "supported",
+            "citation_ids": ["citation-1"],
+            "unsupported_reason": None,
+        }
+    ]
+    assert payload["citations"][0]["chunk_id"] == "chunk-real"  # type: ignore[index]
+
+
+@pytest.mark.anyio
+async def test_hybrid_low_confidence_evidence_remains_safe_at_default_threshold() -> (
+    None
+):
+    low_source = _source(score=0.19)
+    hybrid = HybridRetrievalService(
+        semantic_service=HybridSemanticFixture([low_source]),  # type: ignore[arg-type]
+        lexical_service=HybridLexicalFixture([]),  # type: ignore[arg-type]
+        semantic_candidate_count=1,
+        lexical_candidate_count=1,
+        rrf_rank_constant=60,
+        max_top_k=20,
+    )
+    provider = FakeProvider(_result("The recovery target is four hours."))
+    app = create_app(_settings(), provider)
+    app.state.rag_service = RagService(
+        retrieval_service=hybrid,
+        provider=provider,
+        prompt_builder=RagPromptBuilder(),
+        context_builder=ContextBuilder(
+            max_characters=1_000, max_estimated_tokens=300, max_sources=3
+        ),
+        retrieval_top_k=3,
+        min_evidence_score=0.2,
+        min_evidence_sources=1,
+        max_retries=0,
+        retry_delay_seconds=0,
+    )
+
+    status, payload = await _post(app, {"question": "What is the target?"})
+
+    assert status == 200
+    assert provider.calls == []
+    assert payload["claims"] == []
+    assert payload["citations"] == []
+
+
+@pytest.mark.anyio
+async def test_hybrid_lexical_only_non_exact_low_score_remains_safe() -> None:
+    # A raw non-exact FTS rank is not promoted merely because it is the only branch.
+    lexical_only_source = _source(score=0.19)
+    hybrid = HybridRetrievalService(
+        semantic_service=HybridSemanticFixture([]),  # type: ignore[arg-type]
+        lexical_service=HybridLexicalFixture([lexical_only_source]),  # type: ignore[arg-type]
+        semantic_candidate_count=1,
+        lexical_candidate_count=1,
+        rrf_rank_constant=60,
+        max_top_k=20,
+    )
+    provider = FakeProvider(_result("The recovery target is four hours."))
+    app = create_app(_settings(), provider)
+    app.state.rag_service = RagService(
+        retrieval_service=hybrid,
+        provider=provider,
+        prompt_builder=RagPromptBuilder(),
+        context_builder=ContextBuilder(
+            max_characters=1_000, max_estimated_tokens=300, max_sources=3
+        ),
+        retrieval_top_k=3,
+        min_evidence_score=0.2,
+        min_evidence_sources=1,
+        max_retries=0,
+        retry_delay_seconds=0,
+    )
+
+    status, payload = await _post(app, {"question": "What is the target?"})
+
+    assert status == 200
+    assert provider.calls == []
+    assert payload["claims"] == []
+    assert payload["citations"] == []
 
 
 @pytest.mark.anyio

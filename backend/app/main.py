@@ -6,11 +6,16 @@ from backend.app.core.config import Settings, get_settings
 from backend.app.core.exceptions import register_exception_handlers
 from backend.app.core.logging import configure_logging
 from backend.app.db.session import create_database_engine, create_session_factory
+from backend.app.embeddings.hybrid import HybridRetrievalService
 from backend.app.embeddings.provider import (
     DeterministicHashEmbeddingProvider,
     EmbeddingProvider,
 )
-from backend.app.embeddings.service import EmbeddingService, SemanticRetrievalService
+from backend.app.embeddings.service import (
+    EmbeddingService,
+    LexicalRetrievalService,
+    SemanticRetrievalService,
+)
 from backend.app.ingestion.service import IngestionService
 from backend.app.llm.policy import StageOneResponsePolicy
 from backend.app.llm.prompt_builder import PromptBuilder
@@ -71,13 +76,26 @@ def create_app(
         dimensions=resolved_settings.embedding_dimensions,
         batch_size=resolved_settings.embedding_batch_size,
     )
-    application.state.retrieval_service = SemanticRetrievalService(
+    semantic_retrieval_service = SemanticRetrievalService(
         session_factory=session_factory,
         provider=embedding_model_provider,
         model=resolved_settings.embedding_model,
         dimensions=resolved_settings.embedding_dimensions,
         max_top_k=resolved_settings.retrieval_max_top_k,
     )
+    application.state.retrieval_service = semantic_retrieval_service
+    if resolved_settings.hybrid_retrieval_enabled:
+        application.state.retrieval_service = HybridRetrievalService(
+            semantic_service=semantic_retrieval_service,
+            lexical_service=LexicalRetrievalService(
+                session_factory=session_factory,
+                max_top_k=resolved_settings.retrieval_max_top_k,
+            ),
+            semantic_candidate_count=resolved_settings.hybrid_semantic_candidate_count,
+            lexical_candidate_count=resolved_settings.hybrid_lexical_candidate_count,
+            rrf_rank_constant=resolved_settings.hybrid_rrf_rank_constant,
+            max_top_k=resolved_settings.retrieval_max_top_k,
+        )
     application.state.rag_service = RagService(
         retrieval_service=application.state.retrieval_service,
         provider=llm_provider,

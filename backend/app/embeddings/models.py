@@ -42,3 +42,30 @@ class RetrievedChunk:
     score: float
     page_number: int | None
     section: str | None
+    # RRF is a ranking value, not an evidence-confidence scale.  It remains
+    # request-local retrieval metadata so callers can inspect fusion behavior
+    # without accidentally using it for the Stage 4 evidence threshold.
+    fusion_score: float | None = None
+
+
+@dataclass(frozen=True)
+class HybridQueryDiagnostics:
+    """Small, request-local counts for an opt-in retrieval diagnostic response.
+
+    Raw queries, document content, and protected-data decisions must never be put in
+    diagnostics.  Stage 9 will supply the authorization filter before either branch
+    runs.
+    """
+
+    semantic_candidate_count: int
+    lexical_candidate_count: int
+    merged_candidate_count: int
+    exact_identifier_candidate_count: int
+
+
+@dataclass(frozen=True)
+class HybridSearchResult:
+    """Fused sources plus safe, bounded branch counts."""
+
+    sources: tuple[RetrievedChunk, ...]
+    diagnostics: HybridQueryDiagnostics

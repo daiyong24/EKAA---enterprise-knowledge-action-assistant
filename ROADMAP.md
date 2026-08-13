@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 5 — Citation & Grounding**. A stage may start only after
+The active stage is **Stage 6 — Hybrid Retrieval**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -70,7 +70,7 @@ Stage 9 is complete.
   to an actual retrieved chunk.
 - **Non-goals:** Claim-level citation UX, hybrid retrieval, or reranking.
 
-## Stage 5 — Citation & Grounding (Active)
+## Stage 5 — Citation & Grounding
 
 - **Objective:** Make individual factual claims verifiable by users.
 - **Deliverables:** Claim/source citation format, excerpts, page/section metadata,
@@ -81,7 +81,7 @@ Stage 9 is complete.
   citation quality baseline is recorded.
 - **Non-goals:** Hybrid retrieval or automated judge as sole authority.
 
-## Stage 6 — Hybrid Retrieval
+## Stage 6 — Hybrid Retrieval (Active)
 
 - **Objective:** Combine semantic and PostgreSQL full-text retrieval.
 - **Deliverables:** Lexical index/search, score normalization or rank fusion, exact-ID

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable, Sequence
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -20,7 +21,10 @@ from backend.app.embeddings.models import (
     RetrievedChunk,
 )
 from backend.app.embeddings.provider import EmbeddingProvider
-from backend.app.embeddings.repository import EmbeddingRepository
+from backend.app.embeddings.repository import (
+    EmbeddingRepository,
+    LexicalRetrievalRepository,
+)
 
 logger = logging.getLogger(__name__)
 SessionFactory = Callable[[], Session]
@@ -237,3 +241,77 @@ class SemanticRetrievalService:
         # Database ordering uses distance then ID; retaining this stable order at the
         # service boundary also protects callers supplied by a mocked repository.
         return sorted(results, key=lambda item: (-item.score, item.chunk_id))
+
+
+_EXACT_IDENTIFIER_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9])[A-Za-z]*\d+[A-Za-z0-9_-]*|[A-Za-z]+[-_][A-Za-z0-9_-]+"
+)
+
+
+def extract_exact_identifiers(query: str, *, maximum: int = 5) -> tuple[str, ...]:
+    """Return bounded, normalized identifier-like tokens from an untrusted query."""
+    identifiers: list[str] = []
+    for match in _EXACT_IDENTIFIER_PATTERN.finditer(query):
+        token = match.group(0).lower()
+        if token not in identifiers:
+            identifiers.append(token)
+        if len(identifiers) == maximum:
+            break
+    return tuple(identifiers)
+
+
+class LexicalRetrievalService:
+    """Read-only PostgreSQL full-text retrieval with exact-ID candidate handling."""
+
+    def __init__(
+        self,
+        *,
+        session_factory: SessionFactory,
+        max_top_k: int,
+        repository: LexicalRetrievalRepository | None = None,
+    ) -> None:
+        self._session_factory = session_factory
+        self._max_top_k = max_top_k
+        self._repository = repository or LexicalRetrievalRepository()
+
+    def search(
+        self,
+        *,
+        query: str,
+        top_k: int,
+        allowed_document_ids: Sequence[str] | None = None,
+    ) -> list[RetrievedChunk]:
+        results, _ = self.search_with_metadata(
+            query=query, top_k=top_k, allowed_document_ids=allowed_document_ids
+        )
+        return results
+
+    def search_with_metadata(
+        self,
+        *,
+        query: str,
+        top_k: int,
+        allowed_document_ids: Sequence[str] | None = None,
+    ) -> tuple[list[RetrievedChunk], int]:
+        if top_k < 1 or top_k > self._max_top_k:
+            raise ValueError("top_k is outside the configured limit")
+        session = self._session_factory()
+        try:
+            results, exact_count = self._repository.search(
+                session,
+                query=query,
+                exact_identifiers=extract_exact_identifiers(query),
+                top_k=top_k,
+                allowed_document_ids=allowed_document_ids,
+            )
+        except SQLAlchemyError as exc:
+            logger.error(
+                "lexical_retrieval_query_failed error_type=%s", type(exc).__name__
+            )
+            raise EmbeddingStorageError from exc
+        finally:
+            session.close()
+        return (
+            sorted(results, key=lambda item: (-item.score, item.chunk_id)),
+            exact_count,
+        )

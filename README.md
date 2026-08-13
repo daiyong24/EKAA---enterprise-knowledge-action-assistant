@@ -5,15 +5,15 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 5 — Citation & Grounding.
+Stage 6 — Hybrid Retrieval.
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
 safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into
 normalized relational chunks, provider-neutral embeddings and PostgreSQL/pgvector
-semantic retrieval, bounded retrieval-augmented generation, and claim-level
-citation validation over that evidence. LLM and RAG are disabled unless explicitly
-configured. Hybrid retrieval, authentication, frontend, tools, agents, and chat
-memory are intentionally absent.
+semantic retrieval, PostgreSQL full-text hybrid retrieval, bounded
+retrieval-augmented generation, and claim-level citation validation over that
+evidence. LLM and RAG are disabled unless explicitly configured. Authentication,
+frontend, tools, agents, and chat memory are intentionally absent.
 
 ## Requirements
 
@@ -113,6 +113,21 @@ return a partly unsupported generated answer as fact. This is a deterministic
 lexical-entailment baseline, not a semantic judge; valid paraphrases may be rejected.
 See `docs/STAGE_5_CITATION_GROUNDING_DESIGN.md` for the exact contract, limits, and
 known limitations.
+
+## Stage 6 Hybrid Retrieval
+
+Stage 6 can combine the existing semantic candidates with PostgreSQL full-text
+candidates. Apply `alembic upgrade head` to create the PostgreSQL `simple`
+full-text GIN expression index, then set `EKAA_HYBRID_RETRIEVAL_ENABLED=true`
+alongside `EKAA_EMBEDDING_ENABLED=true`. The candidate counts and RRF rank constant
+are bounded configuration values; no model or provider is added.
+
+`POST /api/retrieval/search` remains read-only. With
+`{"include_diagnostics": true}`, it can return bounded branch counts only; it
+never echoes the query or adds unselected document information. Identifier-shaped
+tokens (such as `INC-1042`) get an exact lexical candidate path before deterministic
+rank fusion. The same retrieval seam is used by RAG, so citations still derive only
+from final selected chunks. See `docs/STAGE_6_HYBRID_RETRIEVAL_DESIGN.md`.
 
 ## Quality Checks
 

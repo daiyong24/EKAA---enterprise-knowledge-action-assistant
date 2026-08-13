@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     embedding_batch_size: int = Field(default=32, ge=1, le=256)
     retrieval_default_top_k: int = Field(default=5, ge=1, le=20)
     retrieval_max_top_k: int = Field(default=20, ge=1, le=50)
+    hybrid_retrieval_enabled: bool = False
+    hybrid_semantic_candidate_count: int = Field(default=12, ge=1, le=50)
+    hybrid_lexical_candidate_count: int = Field(default=12, ge=1, le=50)
+    hybrid_rrf_rank_constant: int = Field(default=60, ge=1, le=1_000)
     rag_enabled: bool = False
     rag_retrieval_top_k: int = Field(default=5, ge=1, le=50)
     rag_min_evidence_score: float = Field(default=0.2, ge=-1, le=1)
@@ -87,11 +91,21 @@ class Settings(BaseSettings):
             raise ValueError("retrieval default top K must not exceed the maximum")
         if self.rag_retrieval_top_k > self.retrieval_max_top_k:
             raise ValueError("RAG retrieval top K must not exceed retrieval maximum")
+        if self.hybrid_semantic_candidate_count > self.retrieval_max_top_k:
+            raise ValueError(
+                "hybrid semantic candidate count exceeds retrieval maximum"
+            )
+        if self.hybrid_lexical_candidate_count > self.retrieval_max_top_k:
+            raise ValueError("hybrid lexical candidate count exceeds retrieval maximum")
         if self.rag_min_evidence_sources > self.rag_max_sources:
             raise ValueError("RAG minimum evidence sources must fit the source limit")
         if self.embedding_enabled and not self.database_url.startswith("postgresql"):
             raise ValueError(
                 "enabled embeddings require a PostgreSQL pgvector database"
+            )
+        if self.hybrid_retrieval_enabled and not self.embedding_enabled:
+            raise ValueError(
+                "enabled hybrid retrieval requires enabled semantic retrieval"
             )
         if self.rag_enabled and not self.embedding_enabled:
             raise ValueError("enabled RAG requires enabled semantic retrieval")

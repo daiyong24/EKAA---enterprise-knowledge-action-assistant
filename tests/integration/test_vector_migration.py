@@ -25,3 +25,26 @@ def test_vector_migration_creates_versioned_embedding_storage(tmp_path: Path) ->
     assert "chunk_embeddings" in inspector.get_table_names()
     columns = {column["name"] for column in inspector.get_columns("chunk_embeddings")}
     assert {"embedding", "embedding_model", "embedding_dimensions"} <= columns
+
+
+def test_hybrid_migration_keeps_sqlite_as_an_honest_relational_only_backend(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "hybrid-migration.db"
+    environment = os.environ.copy()
+    environment["EKAA_DATABASE_URL"] = f"sqlite:///{database_path.as_posix()}"
+
+    completed = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=Path(__file__).parents[2],
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert (
+        "document_chunks"
+        in inspect(create_engine(environment["EKAA_DATABASE_URL"])).get_table_names()
+    )
