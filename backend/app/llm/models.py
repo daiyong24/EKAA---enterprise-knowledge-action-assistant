@@ -21,6 +21,8 @@ class ChatResult(BaseModel):
     answer: str = Field(min_length=1)
     model: str = Field(min_length=1)
     usage: TokenUsage
+    # Internal provider metadata. It is deliberately not exposed by API schemas.
+    finish_reason: str | None = None
 
 
 @dataclass(frozen=True)

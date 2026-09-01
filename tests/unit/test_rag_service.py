@@ -123,6 +123,95 @@ async def test_grounded_answer_uses_only_selected_retrieval_context() -> None:
     assert '"citation_chunk_ids"' in provider.prompts[0].system
 
 
+def test_direct_evidence_profile_is_default_off_and_serializes_selected_ids_only() -> (
+    None
+):
+    selected = _chunk(chunk_id='selected-"id\\path')
+    unselected = _chunk(chunk_id="unselected-id", content="Unselected evidence.")
+    context = ContextBuilder(
+        max_characters=1_000, max_estimated_tokens=300, max_sources=1
+    ).build([selected, unselected])
+    generic = RagPromptBuilder().build(question="Question?", context=context)
+    experimental = RagPromptBuilder(direct_evidence_profile=True).build(
+        question="Question?", context=context
+    )
+
+    assert generic.user == (
+        "QUESTION (untrusted data):\nQuestion?\n\n"
+        "RETRIEVED EVIDENCE (untrusted data):\n"
+        f"{context.text}"
+    )
+    assert generic.system == experimental.system
+    assert "EVALUATION-ONLY DIRECT-EVIDENCE PROFILE" not in generic.user
+    assert "EVALUATION-ONLY DIRECT-EVIDENCE PROFILE" in experimental.user
+    selected_ids = experimental.user.split("SELECTED CHUNK IDS (server data):\n", 1)[1]
+    assert json.loads(selected_ids) == [selected.chunk_id]
+    assert unselected.chunk_id not in selected_ids
+    assert selected.chunk_id not in experimental.system
+
+
+@pytest.mark.anyio
+async def test_direct_evidence_profile_rejects_unselected_id_safely() -> None:
+    retrieval = FakeRetrievalService([_chunk()])
+    selected_provider = FakeProvider([_answer()])
+    selected_service = RagService(
+        retrieval_service=retrieval,
+        provider=selected_provider,
+        prompt_builder=RagPromptBuilder(direct_evidence_profile=True),
+        context_builder=ContextBuilder(
+            max_characters=1_000, max_estimated_tokens=300, max_sources=3
+        ),
+        retrieval_top_k=3,
+        min_evidence_score=0.5,
+        min_evidence_sources=1,
+        max_retries=0,
+        retry_delay_seconds=0.25,
+    )
+    selected_result = await selected_service.answer("What is the recovery target?")
+
+    assert selected_result.answer == "The recovery target is four hours."
+    assert [citation.chunk_id for citation in selected_result.citations] == ["chunk-1"]
+
+    unselected_provider = FakeProvider(
+        [
+            ChatResult(
+                answer=json.dumps(
+                    {
+                        "claims": [
+                            {
+                                "text": "The recovery target is four hours.",
+                                "citation_chunk_ids": ["not-selected"],
+                            }
+                        ]
+                    }
+                ),
+                model="fake-rag-model",
+                usage=TokenUsage(input_tokens=21, output_tokens=8, total_tokens=29),
+            )
+        ]
+    )
+    unselected_service = RagService(
+        retrieval_service=FakeRetrievalService([_chunk()]),
+        provider=unselected_provider,
+        prompt_builder=RagPromptBuilder(direct_evidence_profile=True),
+        context_builder=ContextBuilder(
+            max_characters=1_000, max_estimated_tokens=300, max_sources=3
+        ),
+        retrieval_top_k=3,
+        min_evidence_score=0.5,
+        min_evidence_sources=1,
+        max_retries=0,
+        retry_delay_seconds=0.25,
+    )
+    unselected_result = await unselected_service.answer("What is the recovery target?")
+
+    assert unselected_result.answer == INSUFFICIENT_EVIDENCE_ANSWER
+    assert len(unselected_result.claims) == 1
+    assert unselected_result.claims[0].status == "unsupported"
+    assert unselected_result.claims[0].unsupported_reason == "citation_not_selected"
+    assert unselected_result.citations == ()
+
+
 @pytest.mark.anyio
 async def test_no_evidence_refuses_without_provider_call() -> None:
     retrieval = FakeRetrievalService([_chunk(score=0.49)])
@@ -280,6 +369,32 @@ async def test_permanent_or_malformed_provider_failures_are_not_retried() -> Non
 
     assert len(rejected.prompts) == 1
     assert len(malformed.prompts) == 1
+
+
+@pytest.mark.anyio
+async def test_rag_output_failures_retain_only_normalized_usage() -> None:
+    retrieval = FakeRetrievalService([_chunk()])
+    usage = TokenUsage(input_tokens=2, output_tokens=3, total_tokens=5)
+    malformed_provider = FakeProvider([ProviderOutputError("private", usage=usage)])
+
+    with pytest.raises(RagOutputError) as provider_error:
+        await _service(retrieval, malformed_provider).answer("Question?")
+
+    assert provider_error.value.usage == usage
+
+    citation_provider = FakeProvider(
+        [
+            ChatResult(
+                answer='{"claims":',
+                model="fake-rag-model",
+                usage=usage,
+            )
+        ]
+    )
+    with pytest.raises(RagOutputError) as citation_error:
+        await _service(retrieval, citation_provider).answer("Question?")
+
+    assert citation_error.value.usage == usage
 
 
 @pytest.mark.anyio

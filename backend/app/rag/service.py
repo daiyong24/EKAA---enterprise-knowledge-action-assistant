@@ -103,7 +103,9 @@ class RagService:
         try:
             proposed_claims = self._citation_output_parser.parse(result.answer)
         except CitationOutputError as exc:
-            raise RagOutputError("provider returned invalid citation output") from exc
+            raise RagOutputError(
+                "provider returned invalid citation output", usage=result.usage
+            ) from exc
         if not proposed_claims:
             return self._insufficient_evidence_result(usage=result.usage)
         claims, citations = self._citation_validator.validate(
@@ -158,7 +160,9 @@ class RagService:
             try:
                 return await self._provider.complete(prompt)
             except ProviderOutputError as exc:
-                raise RagOutputError("provider returned invalid output") from exc
+                raise RagOutputError(
+                    "provider returned invalid output", usage=exc.usage
+                ) from exc
             except ProviderNonRetryableError as exc:
                 raise RagProviderRejectedError("provider rejected request") from exc
             except ProviderConfigurationError as exc:

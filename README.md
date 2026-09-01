@@ -5,7 +5,7 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 7 — Reranking.
+Stage 8 — RAG Evaluation.
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
 safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into
@@ -144,6 +144,101 @@ existing context character/token/source limits, or controls citations. A timeout
 provider failure, or malformed reranker response falls back to the original stable
 hybrid order. See `docs/STAGE_7_RERANKING_DESIGN.md` for the tested comparison and
 limitations.
+
+## Stage 8 RAG Evaluation
+
+Stage 8 provides a versioned 50-question synthetic golden dataset and a controlled
+local evaluation runner. It calculates reproducible retrieval metrics, latency,
+tokens, failures, unsupported-claim rate, and optional cost only when a versioned
+price schedule exists. Correctness, faithfulness, and citation accuracy require
+calibrated human assessments; every live replay records them as unavailable. A review
+can be applied only afterwards through the offline v2 assessment command, which binds
+the review to the exact raw-byte SHA-256 and run ID of one unscored full
+local-generation artifact.
+It does not call a database or provider by default and its JSON/CSV artifacts exclude
+question and document content. The separate `--synthetic-ollama-corpus` path is an
+explicit local-only generation evaluation: it accepts only the loopback Ollama
+OpenAI-compatible endpoint, requires `--allow-local-ollama`, and maps only the
+versioned synthetic corpus through the existing RAG/citation boundaries. It never
+opens the database or exposes a HTTP endpoint. With Ollama running locally and an
+untracked `.env` containing the commented Stage 8 settings from `.env.example`, an
+operator may run a full replay. Before its 50 questions, the command makes exactly
+one generic, content-free readiness completion through the same local provider instance.
+It emits only a six-field safe outcome record, discards its answer and usage, and aborts
+before the runner, JSON/CSV artifacts, or reviewer packet if that completion does not
+stop with the configured model. This environmental preparation is excluded from all
+evaluation metrics and source artifacts; it does not guarantee later availability.
+Single-question smoke runs intentionally do not perform this readiness step.
+
+If a prior policy-bound readiness attempt failed, an operator may first test only the
+same bounded environmental prerequisite. This preflight validates the full reviewed
+dataset, policy, and approved corpus before provider construction, then makes exactly
+one readiness call through its isolated readiness-only provider boundary. It accepts no JSON/CSV paths, review packet, smoke selector, or
+assessment input; it never retrieves evidence, runs questions, or writes artifacts.
+A ready result does not bypass the normal full-run readiness gate or guarantee a later
+provider call will succeed.
+
+```powershell
+python -m backend.app.evaluation.cli `
+  --dataset docs/evaluation/golden_dataset_v1.json `
+  --policy docs/evaluation/baseline_policy_v1.json `
+  --local-ollama-preflight `
+  --synthetic-ollama-corpus docs/evaluation/synthetic_corpus_v1.json `
+  --allow-local-ollama `
+  --top-k 5 `
+  --run-id baseline-policy-preflight-YYYYMMDD
+```
+
+```powershell
+python -m backend.app.evaluation.cli `
+  --dataset docs/evaluation/golden_dataset_v1.json `
+  --synthetic-ollama-corpus docs/evaluation/synthetic_corpus_v1.json `
+  --allow-local-ollama `
+  --output-json C:\safe-local\stage8_ollama_qwen3_4b.json `
+  --output-csv C:\safe-local\stage8_ollama_qwen3_4b.csv `
+  --top-k 5 `
+  --run-id ollama-qwen3-4b-YYYYMMDD
+```
+
+`--top-k` must match `EKAA_RAG_RETRIEVAL_TOP_K`; the default for both is 5. The
+result is a measured local run, not a baseline or a quality claim until calibrated
+human assessments are supplied. See `docs/STAGE_8_EVALUATION_DESIGN.md` for formulas,
+calibration, gates, caveats, and all controlled commands.
+
+For one explicit local synthetic reviewer session, add `--review-packet <outside-repo
+Markdown path>` and `--reviewer-id <pseudonymous-id>` to a normal full local Ollama
+replay (never a smoke run). The command writes an unscored content-free source artifact
+and a separate local Markdown packet from that exact replay. The packet contains only
+approved synthetic question/answer/evidence/citation material, must remain outside the
+repository, is never a scoring input, and is retained or deleted only by the operator.
+It is intended for a reviewer to record verdicts before a separate v2 assessment bundle
+is created. A solo reviewer produces provisional human evidence, not inter-reviewer
+agreement.
+
+For one local-provider smoke question before a full replay, add
+`--question-id <reviewed-question-id>` to that exact Ollama command. The command still
+loads and validates the complete dataset and pinned corpus before selecting the one
+question, forbids `--assessments`, writes `single_question_smoke` into the artifact,
+and cannot be used as a regression baseline or comparison input. Omit
+`--question-id` for the normal 50-question `full_dataset` run.
+
+After a reviewer creates a strict content-free v2 assessment bundle for one completed
+full local-generation artifact, score it without constructing a target, provider, or
+database connection:
+
+```powershell
+python -m backend.app.evaluation.cli `
+  --dataset docs/evaluation/golden_dataset_v1.json `
+  --assessments C:\safe-local\stage8_assessment_v2.json `
+  --assessment-source-artifact C:\safe-local\stage8_ollama_full.json `
+  --output-json C:\safe-local\stage8_ollama_scored.json `
+  --output-csv C:\safe-local\stage8_ollama_scored.csv
+```
+
+Offline scoring accepts exactly those two assessment/source inputs and no live target,
+Ollama flag, smoke selector, or run ID. Input and output paths must all differ. Legacy,
+smoke, fixture, retrieval-only, previously scored, incomplete, or aggregate-forged
+artifacts are rejected before either output is written.
 
 ## Quality Checks
 

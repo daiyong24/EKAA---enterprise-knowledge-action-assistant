@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "policy_version": "1.1.0",
+  "dataset_id": "ekaa-synthetic-golden",
+  "dataset_version": "1.0.0",
+  "status": "active",
+  "synthetic_corpus_sha256": "c2e4d529881a0b711c4f5c6cc42b2ef1f6ed14a71e56a0dfef5678100fce2fa6",
+  "thresholds": {
+    "max_retrieval_metric_drop": 0.02,
+    "max_human_metric_drop": 0.02,
+    "max_failure_rate_increase": 0.01,
+    "max_latency_p95_multiplier": 1.25,
+    "max_total_tokens_multiplier": 1.1
+  },
+  "caveat": "This active gate policy requires an immutable measured baseline bound to this exact policy SHA. Do not substitute fixture values, prior-policy artifacts, or an unreviewed replay for a live synthetic RAG quality result."
+}

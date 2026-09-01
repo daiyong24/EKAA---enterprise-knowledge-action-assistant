@@ -39,13 +39,20 @@ class OpenAICompatibleProvider:
         if not self._enabled or self._api_key is None or self._model is None:
             raise ProviderConfigurationError("LLM provider is not configured")
 
-        request_body = {
+        request_body: dict[str, Any] = {
             "model": self._model,
             "messages": [
                 {"role": "system", "content": prompt.system},
                 {"role": "user", "content": prompt.user},
             ],
         }
+        extension = self._request_body_extension(prompt)
+        protected_fields = {"model", "messages"}
+        if protected_fields.intersection(extension):
+            raise ProviderConfigurationError(
+                "provider request extension cannot replace EKAA prompt fields"
+            )
+        request_body.update(extension)
         headers = {"Authorization": f"Bearer {self._api_key.get_secret_value()}"}
         timeout = httpx.Timeout(self._timeout_seconds)
         try:
@@ -54,6 +61,7 @@ class OpenAICompatibleProvider:
                 headers=headers,
                 timeout=timeout,
                 transport=self._transport,
+                **self._client_options(),
             ) as client:
                 response = await client.post("/chat/completions", json=request_body)
         except httpx.TimeoutException as exc:
@@ -72,29 +80,66 @@ class OpenAICompatibleProvider:
             raise ProviderOutputError("provider response was not JSON") from exc
         return self._map_response(payload)
 
+    def _request_body_extension(self, prompt: ChatPrompt) -> Mapping[str, Any]:
+        """Return provider-specific additions without changing the default body.
+
+        This protected hook is deliberately internal: specialized local adapters may
+        append controls, but may not replace the configured model or EKAA's ordered
+        system/user prompt messages.
+        """
+
+        del prompt
+        return {}
+
+    def _client_options(self) -> Mapping[str, Any]:
+        """Return internal HTTP-client options for specialized adapters only.
+
+        The generic provider intentionally leaves HTTPX environment behavior at its
+        existing default. A private local adapter may opt out when its egress
+        boundary requires proxy isolation.
+        """
+
+        return {}
+
     def _map_response(self, payload: Any) -> ChatResult:
         if not isinstance(payload, Mapping):
             raise ProviderOutputError("provider response must be an object")
 
+        usage = self._map_usage(payload.get("usage"))
         model = payload.get("model")
         choices = payload.get("choices")
-        usage = payload.get("usage")
         if not isinstance(model, str) or not model.strip():
-            raise ProviderOutputError("provider response omitted model")
+            raise ProviderOutputError("provider response omitted model", usage=usage)
         if not isinstance(choices, list) or not choices:
-            raise ProviderOutputError("provider response omitted choices")
+            raise ProviderOutputError("provider response omitted choices", usage=usage)
         first_choice = choices[0]
         if not isinstance(first_choice, Mapping):
-            raise ProviderOutputError("provider choice was invalid")
+            raise ProviderOutputError("provider choice was invalid", usage=usage)
         message = first_choice.get("message")
         if not isinstance(message, Mapping):
-            raise ProviderOutputError("provider message was invalid")
+            raise ProviderOutputError("provider message was invalid", usage=usage)
         answer = message.get("content")
         if not isinstance(answer, str) or not answer.strip():
-            raise ProviderOutputError("provider response omitted text content")
+            raise ProviderOutputError(
+                "provider response omitted text content", usage=usage
+            )
+        finish_reason = first_choice.get("finish_reason")
+        if finish_reason is not None and (
+            not isinstance(finish_reason, str) or not finish_reason.strip()
+        ):
+            raise ProviderOutputError("provider finish reason was invalid", usage=usage)
+
+        return ChatResult(
+            answer=answer.strip(),
+            model=model,
+            usage=usage,
+            finish_reason=finish_reason,
+        )
+
+    @staticmethod
+    def _map_usage(usage: Any) -> TokenUsage:
         if not isinstance(usage, Mapping):
             raise ProviderOutputError("provider response omitted usage")
-
         input_tokens = usage.get("prompt_tokens")
         output_tokens = usage.get("completion_tokens")
         total_tokens = usage.get("total_tokens")
@@ -112,12 +157,8 @@ class OpenAICompatibleProvider:
         ):
             raise ProviderOutputError("provider usage total was inconsistent")
 
-        return ChatResult(
-            answer=answer.strip(),
-            model=model,
-            usage=TokenUsage(
-                input_tokens=normalized_input_tokens,
-                output_tokens=normalized_output_tokens,
-                total_tokens=normalized_total_tokens,
-            ),
+        return TokenUsage(
+            input_tokens=normalized_input_tokens,
+            output_tokens=normalized_output_tokens,
+            total_tokens=normalized_total_tokens,
         )

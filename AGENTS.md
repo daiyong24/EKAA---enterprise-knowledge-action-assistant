@@ -15,8 +15,8 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 7 — Reranking. Do not implement authentication, tools, agents, chat memory,
-or frontend functionality.
+Stage 8 — RAG Evaluation. Do not change retrieval/reranking behavior or implement
+authentication, tools, agents, chat memory, or frontend functionality.
 
 ## Engineering Rules
 

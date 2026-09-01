@@ -1,3 +1,6 @@
+from backend.app.llm.models import TokenUsage
+
+
 class ProviderError(Exception):
     """Base class for provider-boundary failures; messages are never public."""
 
@@ -20,6 +23,10 @@ class ProviderNonRetryableError(ProviderError):
 
 class ProviderOutputError(ProviderError):
     """The provider response cannot satisfy the normalized output contract."""
+
+    def __init__(self, message: str, *, usage: TokenUsage | None = None) -> None:
+        super().__init__(message)
+        self.usage = usage
 
 
 class ChatServiceError(Exception):

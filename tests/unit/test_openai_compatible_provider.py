@@ -1,8 +1,14 @@
+import json
+
 import httpx
 import pytest
 
 from backend.app.core.config import Settings
-from backend.app.llm.errors import ProviderOutputError, ProviderRetryableError
+from backend.app.llm.errors import (
+    ProviderOutputError,
+    ProviderRetryableError,
+    ProviderTimeoutError,
+)
 from backend.app.llm.models import ChatPrompt
 from backend.app.llm.provider import OpenAICompatibleProvider
 
@@ -22,6 +28,13 @@ async def test_openai_compatible_provider_maps_usage_without_live_call() -> None
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v1/chat/completions"
         assert request.headers["authorization"] == "Bearer not-a-real-secret"
+        assert json.loads(request.content) == {
+            "model": "configured-test-model",
+            "messages": [
+                {"role": "system", "content": "system"},
+                {"role": "user", "content": "hello"},
+            ],
+        }
         return httpx.Response(
             200,
             json={
@@ -48,6 +61,7 @@ async def test_openai_compatible_provider_maps_usage_without_live_call() -> None
         "output_tokens": 4,
         "total_tokens": 11,
     }
+    assert result.finish_reason is None
 
 
 def test_openai_compatible_provider_rejects_invalid_usage() -> None:
@@ -67,6 +81,30 @@ def test_openai_compatible_provider_rejects_invalid_usage() -> None:
         )
 
 
+def test_openai_compatible_provider_retains_valid_usage_on_late_output_error() -> None:
+    provider = OpenAICompatibleProvider(_settings())
+
+    with pytest.raises(ProviderOutputError) as error:
+        provider._map_response(
+            {
+                "model": "provider-model",
+                "choices": [{"message": {"content": ""}}],
+                "usage": {
+                    "prompt_tokens": 2,
+                    "completion_tokens": 3,
+                    "total_tokens": 5,
+                },
+            }
+        )
+
+    assert error.value.usage is not None
+    assert error.value.usage.model_dump() == {
+        "input_tokens": 2,
+        "output_tokens": 3,
+        "total_tokens": 5,
+    }
+
+
 @pytest.mark.anyio
 async def test_openai_compatible_provider_marks_rate_limit_retryable() -> None:
     provider = OpenAICompatibleProvider(
@@ -75,4 +113,17 @@ async def test_openai_compatible_provider_marks_rate_limit_retryable() -> None:
     )
 
     with pytest.raises(ProviderRetryableError):
+        await provider.complete(ChatPrompt(system="system", user="hello"))
+
+
+@pytest.mark.anyio
+async def test_openai_compatible_provider_maps_read_timeout_to_timeout_error() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("local provider did not respond")
+
+    provider = OpenAICompatibleProvider(
+        _settings(), transport=httpx.MockTransport(handler)
+    )
+
+    with pytest.raises(ProviderTimeoutError):
         await provider.complete(ChatPrompt(system="system", user="hello"))
