@@ -25,7 +25,17 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = Field(default=15.0, gt=0, le=120)
     llm_max_retries: int = Field(default=2, ge=0, le=3)
     llm_retry_delay_seconds: float = Field(default=0.1, ge=0, le=5)
+    reliability_chat_deadline_seconds: float = Field(default=30.0, gt=0, le=120)
+    reliability_rag_deadline_seconds: float = Field(default=30.0, gt=0, le=120)
+    reliability_retry_base_seconds: float = Field(default=0.1, ge=0, le=5)
+    reliability_retry_max_seconds: float = Field(default=5.0, gt=0, le=30)
+    reliability_retry_jitter_ratio: float = Field(default=0.2, ge=0, le=1)
+    reliability_circuit_failure_threshold: int = Field(default=3, ge=1, le=20)
+    reliability_circuit_recovery_seconds: float = Field(default=30.0, gt=0, le=600)
+    reliability_health_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
     database_url: str = "sqlite:///./ekaa.db"
+    database_connect_timeout_seconds: int = Field(default=5, ge=1, le=120)
+    database_pool_timeout_seconds: float = Field(default=5.0, gt=0, le=120)
     embedding_enabled: bool = False
     embedding_provider: Literal["deterministic"] = "deterministic"
     embedding_model: str = "deterministic-hash-v1"

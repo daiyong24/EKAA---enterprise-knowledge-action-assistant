@@ -1,4 +1,7 @@
+import asyncio
+
 from fastapi import FastAPI
+from sqlalchemy import text
 
 from backend.app.api.request_size_limit import DocumentUploadRequestSizeLimitMiddleware
 from backend.app.api.router import api_router
@@ -34,6 +37,13 @@ from backend.app.rag.citations import CitationOutputParser, CitationValidator
 from backend.app.rag.context import ContextBuilder
 from backend.app.rag.prompt_builder import RagPromptBuilder
 from backend.app.rag.service import RagService
+from backend.app.reliability.backoff import BackoffPolicy
+from backend.app.reliability.circuit_breaker import CircuitBreaker
+from backend.app.reliability.health import DependencyHealthService
+from backend.app.reliability.provider import (
+    CircuitBreakingProvider,
+    is_provider_availability_failure,
+)
 from backend.app.reranking.provider import (
     DeterministicOverlapReranker,
     RerankerProvider,
@@ -63,14 +73,31 @@ def create_app(
         max_body_size_bytes=resolved_settings.ingestion_max_request_size_bytes,
     )
     llm_provider = provider or OpenAICompatibleProvider(resolved_settings)
+    backoff_policy = BackoffPolicy(
+        base_seconds=resolved_settings.reliability_retry_base_seconds,
+        maximum_seconds=resolved_settings.reliability_retry_max_seconds,
+        jitter_ratio=resolved_settings.reliability_retry_jitter_ratio,
+    )
+    provider_breaker = CircuitBreaker(
+        failure_threshold=resolved_settings.reliability_circuit_failure_threshold,
+        recovery_timeout_seconds=resolved_settings.reliability_circuit_recovery_seconds,
+        failure_predicate=is_provider_availability_failure,
+    )
+    reliable_llm_provider = CircuitBreakingProvider(llm_provider, provider_breaker)
     application.state.chat_service = ChatService(
-        provider=llm_provider,
+        provider=reliable_llm_provider,
         prompt_builder=PromptBuilder(),
         response_policy=StageOneResponsePolicy(),
         max_retries=resolved_settings.llm_max_retries,
         retry_delay_seconds=resolved_settings.llm_retry_delay_seconds,
+        backoff_policy=backoff_policy,
+        deadline_seconds=resolved_settings.reliability_chat_deadline_seconds,
     )
-    database_engine = create_database_engine(resolved_settings.database_url)
+    database_engine = create_database_engine(
+        resolved_settings.database_url,
+        connect_timeout_seconds=resolved_settings.database_connect_timeout_seconds,
+        pool_timeout_seconds=resolved_settings.database_pool_timeout_seconds,
+    )
     application.state.database_engine = database_engine
     embedding_model_provider = embedding_provider or DeterministicHashEmbeddingProvider(
         model=resolved_settings.embedding_model,
@@ -135,7 +162,7 @@ def create_app(
     )
     application.state.rag_service = RagService(
         retrieval_service=application.state.retrieval_service,
-        provider=llm_provider,
+        provider=reliable_llm_provider,
         prompt_builder=RagPromptBuilder(),
         context_builder=ContextBuilder(
             max_characters=resolved_settings.rag_max_context_characters,
@@ -160,6 +187,24 @@ def create_app(
         min_evidence_sources=resolved_settings.rag_min_evidence_sources,
         max_retries=resolved_settings.llm_max_retries,
         retry_delay_seconds=resolved_settings.llm_retry_delay_seconds,
+        backoff_policy=backoff_policy,
+        deadline_seconds=resolved_settings.reliability_rag_deadline_seconds,
+    )
+
+    async def database_health_check() -> None:
+        def ping() -> None:
+            with database_engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+
+        await asyncio.to_thread(ping)
+
+    health_checks = {"database": database_health_check}
+    provider_health_check = getattr(llm_provider, "health_check", None)
+    if resolved_settings.llm_enabled and callable(provider_health_check):
+        health_checks["llm_provider"] = provider_health_check
+    application.state.dependency_health = DependencyHealthService(
+        health_checks,
+        timeout_seconds=resolved_settings.reliability_health_timeout_seconds,
     )
     register_exception_handlers(application)
     application.include_router(api_router, prefix=resolved_settings.api_prefix)

@@ -15,8 +15,8 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 9 — Authentication & Authorization. Do not implement tools, agents, chat
-memory, or frontend functionality.
+Stage 10 — RAG Reliability. Do not implement tools, agents, chat memory, or
+frontend functionality.
 
 ## Engineering Rules
 

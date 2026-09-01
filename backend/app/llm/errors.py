@@ -17,6 +17,19 @@ class ProviderRetryableError(ProviderError):
     """A temporary provider or transport failure that may be retried."""
 
 
+class ProviderRateLimitError(ProviderRetryableError):
+    """The provider asked the caller to slow down."""
+
+    def __init__(
+        self,
+        message: str = "provider rate limit exceeded",
+        *,
+        retry_after: float | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 class ProviderNonRetryableError(ProviderError):
     """A permanent provider request failure."""
 

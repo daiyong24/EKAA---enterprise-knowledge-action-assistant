@@ -10,6 +10,8 @@ def test_settings_have_safe_defaults() -> None:
     assert settings.environment == "development"
     assert settings.debug is False
     assert settings.api_prefix == ""
+    assert settings.database_connect_timeout_seconds == 5
+    assert settings.reliability_retry_jitter_ratio == 0.2
 
 
 def test_api_prefix_rejects_trailing_slash() -> None:

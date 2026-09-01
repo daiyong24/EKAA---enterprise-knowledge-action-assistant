@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 9 — Authentication & Authorization**. A stage may start only after
+The active stage is **Stage 10 — RAG Reliability**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -116,7 +116,7 @@ Stage 9 is complete.
 - **Non-goals:** Using LLM-as-judge without human calibration or claiming universal
   quality from one dataset.
 
-## Stage 9 — Authentication & Authorization (Active)
+## Stage 9 — Authentication & Authorization (Complete)
 
 - **Objective:** Prevent unauthorized discovery and retrieval of documents.
 - **Deliverables:** Identity integration, roles/groups, document classification and
@@ -127,7 +127,7 @@ Stage 9 is complete.
   evaluation artifacts in adversarial integration tests.
 - **Non-goals:** Full enterprise IAM feature parity or multi-tenancy unless selected.
 
-## Stage 10 — RAG Reliability
+## Stage 10 — RAG Reliability (Active)
 
 - **Objective:** Degrade safely across provider, database, and malformed-output
   failures.

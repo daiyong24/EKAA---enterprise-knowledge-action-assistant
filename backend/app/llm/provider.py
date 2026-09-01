@@ -1,5 +1,6 @@
 import json
 from collections.abc import Mapping
+from math import isfinite
 from typing import Any, Protocol, cast
 
 import httpx
@@ -9,6 +10,7 @@ from backend.app.llm.errors import (
     ProviderConfigurationError,
     ProviderNonRetryableError,
     ProviderOutputError,
+    ProviderRateLimitError,
     ProviderRetryableError,
     ProviderTimeoutError,
 )
@@ -69,16 +71,61 @@ class OpenAICompatibleProvider:
         except httpx.TransportError as exc:
             raise ProviderRetryableError("provider transport failed") from exc
 
-        if response.status_code in {408, 429} or response.status_code >= 500:
+        if response.status_code == 429:
+            retry_after = self._retry_after(response.headers.get("Retry-After"))
+            raise ProviderRateLimitError(retry_after=retry_after)
+        if response.status_code == 408 or response.status_code >= 500:
             raise ProviderRetryableError("provider returned a temporary failure")
         if response.status_code >= 400:
             raise ProviderNonRetryableError("provider rejected the request")
 
         try:
             payload = response.json()
-        except json.JSONDecodeError as exc:
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise ProviderOutputError("provider response was not JSON") from exc
         return self._map_response(payload)
+
+    async def health_check(self) -> None:
+        """Probe provider availability without sending prompts or user content."""
+        if not self._enabled or self._api_key is None or self._model is None:
+            raise ProviderConfigurationError("LLM provider is not configured")
+        timeout = httpx.Timeout(self._timeout_seconds)
+        try:
+            async with httpx.AsyncClient(
+                base_url=self._base_url,
+                headers={"Authorization": f"Bearer {self._api_key.get_secret_value()}"},
+                timeout=timeout,
+                transport=self._transport,
+                **self._client_options(),
+            ) as client:
+                response = await client.get("/models")
+        except httpx.TimeoutException as exc:
+            raise ProviderTimeoutError("provider health check timed out") from exc
+        except httpx.TransportError as exc:
+            raise ProviderRetryableError(
+                "provider health check transport failed"
+            ) from exc
+        if response.status_code == 429:
+            raise ProviderRateLimitError()
+        if response.status_code >= 500:
+            raise ProviderRetryableError(
+                "provider health check returned a temporary failure"
+            )
+        if response.status_code >= 400:
+            raise ProviderNonRetryableError("provider health check was rejected")
+
+    @staticmethod
+    def _retry_after(value: str | None) -> float | None:
+        """Accept only a bounded numeric Retry-After value; never expose it."""
+        if value is None:
+            return None
+        try:
+            seconds = float(value.strip())
+        except ValueError:
+            return None
+        if not isfinite(seconds) or seconds < 0:
+            return None
+        return min(seconds, 60.0)
 
     def _request_body_extension(self, prompt: ChatPrompt) -> Mapping[str, Any]:
         """Return provider-specific additions without changing the default body.

@@ -6,7 +6,7 @@ import pytest
 from backend.app.core.config import Settings
 from backend.app.llm.errors import (
     ProviderOutputError,
-    ProviderRetryableError,
+    ProviderRateLimitError,
     ProviderTimeoutError,
 )
 from backend.app.llm.models import ChatPrompt
@@ -112,7 +112,51 @@ async def test_openai_compatible_provider_marks_rate_limit_retryable() -> None:
         transport=httpx.MockTransport(lambda request: httpx.Response(429)),
     )
 
-    with pytest.raises(ProviderRetryableError):
+    with pytest.raises(ProviderRateLimitError) as error:
+        await provider.complete(ChatPrompt(system="system", user="hello"))
+    assert error.value.retry_after is None
+
+
+@pytest.mark.anyio
+async def test_openai_compatible_provider_bounds_retry_after_header() -> None:
+    provider = OpenAICompatibleProvider(
+        _settings(),
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(429, headers={"Retry-After": "120"})
+        ),
+    )
+
+    with pytest.raises(ProviderRateLimitError) as error:
+        await provider.complete(ChatPrompt(system="system", user="hello"))
+    assert error.value.retry_after == 60
+
+
+@pytest.mark.anyio
+async def test_openai_compatible_provider_ignores_non_finite_retry_after_header() -> (
+    None
+):
+    provider = OpenAICompatibleProvider(
+        _settings(),
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(429, headers={"Retry-After": "NaN"})
+        ),
+    )
+
+    with pytest.raises(ProviderRateLimitError) as error:
+        await provider.complete(ChatPrompt(system="system", user="hello"))
+    assert error.value.retry_after is None
+
+
+@pytest.mark.anyio
+async def test_openai_compatible_provider_maps_invalid_json_encoding_safely() -> None:
+    provider = OpenAICompatibleProvider(
+        _settings(),
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, content=b"\xff")
+        ),
+    )
+
+    with pytest.raises(ProviderOutputError):
         await provider.complete(ChatPrompt(system="system", user="hello"))
 
 
@@ -127,3 +171,17 @@ async def test_openai_compatible_provider_maps_read_timeout_to_timeout_error() -
 
     with pytest.raises(ProviderTimeoutError):
         await provider.complete(ChatPrompt(system="system", user="hello"))
+
+
+@pytest.mark.anyio
+async def test_provider_health_check_uses_no_prompt_probe() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/models"
+        assert request.content == b""
+        return httpx.Response(200, json={"data": []})
+
+    provider = OpenAICompatibleProvider(
+        _settings(), transport=httpx.MockTransport(handler)
+    )
+
+    await provider.health_check()

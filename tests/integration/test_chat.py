@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -108,6 +110,35 @@ async def test_chat_timeout_has_safe_error_contract() -> None:
         }
     }
     assert "not-a-public-detail" not in str(payload)
+
+
+@pytest.mark.anyio
+async def test_chat_request_deadline_is_user_visible_safe_degradation() -> None:
+    class SlowProvider:
+        async def complete(self, _prompt: ChatPrompt) -> ChatResult:
+            await asyncio.sleep(1)
+            return _result()
+
+    app = create_app(
+        Settings(
+            environment="test",
+            log_level="CRITICAL",
+            reliability_chat_deadline_seconds=0.01,
+            _env_file=None,
+        ),
+        SlowProvider(),
+    )
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/chat", json={"message": "Explain RAG."})
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": {
+            "code": "llm_unavailable",
+            "message": "The language model is currently unavailable.",
+        }
+    }
 
 
 @pytest.mark.anyio

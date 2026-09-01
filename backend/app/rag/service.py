@@ -12,6 +12,7 @@ from backend.app.llm.errors import (
     ProviderConfigurationError,
     ProviderNonRetryableError,
     ProviderOutputError,
+    ProviderRateLimitError,
     ProviderRetryableError,
     ProviderTimeoutError,
 )
@@ -30,6 +31,8 @@ from backend.app.rag.errors import (
 )
 from backend.app.rag.models import Citation, CitationClaim, RagAnswerResult
 from backend.app.rag.prompt_builder import RagPromptBuilder
+from backend.app.reliability.backoff import BackoffPolicy
+from backend.app.reliability.provider import ProviderCircuitOpenError
 from backend.app.reranking.service import RerankingService
 
 logger = logging.getLogger(__name__)
@@ -66,6 +69,8 @@ class RagService:
         max_retries: int,
         retry_delay_seconds: float,
         sleep: Sleep = asyncio.sleep,
+        backoff_policy: BackoffPolicy | None = None,
+        deadline_seconds: float | None = None,
     ) -> None:
         self._retrieval_service = retrieval_service
         self._provider = provider
@@ -85,10 +90,26 @@ class RagService:
         self._max_retries = max_retries
         self._retry_delay_seconds = retry_delay_seconds
         self._sleep = sleep
+        self._backoff_policy = backoff_policy
+        self._deadline_seconds = deadline_seconds
 
     async def answer(self, question: str) -> RagAnswerResult:
-        retrieved = self._retrieval_service.search(
-            query=question, top_k=self._rerank_candidate_count
+        if self._deadline_seconds is None:
+            return await self._answer(question)
+        try:
+            async with asyncio.timeout(self._deadline_seconds):
+                return await self._answer(question)
+        except TimeoutError as exc:
+            raise RagUnavailableError("request deadline exceeded") from exc
+
+    async def _answer(self, question: str) -> RagAnswerResult:
+        # Retrieval is a synchronous persistence boundary. Running it in a worker
+        # lets the request deadline cancel the awaiting request without leaking
+        # database/provider details into the public error contract.
+        retrieved = await asyncio.to_thread(
+            self._retrieval_service.search,
+            query=question,
+            top_k=self._rerank_candidate_count,
         )
         qualified = self._sufficient_chunks(retrieved)
         if self._reranking_service is not None:
@@ -167,6 +188,8 @@ class RagService:
                 raise RagProviderRejectedError("provider rejected request") from exc
             except ProviderConfigurationError as exc:
                 raise RagUnavailableError("provider is not configured") from exc
+            except ProviderCircuitOpenError as exc:
+                raise RagUnavailableError("provider circuit is open") from exc
             except (ProviderTimeoutError, ProviderRetryableError) as exc:
                 if attempt == self._max_retries:
                     raise RagUnavailableError("provider remained unavailable") from exc
@@ -175,5 +198,14 @@ class RagService:
                     attempt + 1,
                     type(exc).__name__,
                 )
-                await self._sleep(self._retry_delay_seconds * (attempt + 1))
+                await self._sleep(self._retry_delay(exc, attempt))
         raise AssertionError("retry loop must return or raise")
+
+    def _retry_delay(self, error: Exception, attempt: int) -> float:
+        if isinstance(error, ProviderRateLimitError) and error.retry_after is not None:
+            if self._backoff_policy is not None:
+                return min(error.retry_after, self._backoff_policy.maximum_seconds)
+            return min(error.retry_after, self._retry_delay_seconds * (attempt + 1))
+        if self._backoff_policy is not None:
+            return self._backoff_policy.delay(attempt)
+        return self._retry_delay_seconds * (attempt + 1)
