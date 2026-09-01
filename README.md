@@ -5,16 +5,18 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 8 — RAG Evaluation.
+Stage 12 — Single-Agent Workflow (Stages 9–12 complete; Stage 13 not started).
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
 safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into
 normalized relational chunks, provider-neutral embeddings and PostgreSQL/pgvector
 semantic retrieval, PostgreSQL full-text hybrid retrieval, bounded deterministic
 reranking for RAG context selection, bounded
-retrieval-augmented generation, and claim-level citation validation over that
-evidence. LLM and RAG are disabled unless explicitly configured. Authentication,
-frontend, tools, agents, and chat memory are intentionally absent.
+retrieval-augmented generation, claim-level citation validation over that evidence,
+provider-neutral identity/authorization, reliability controls, typed policy-classified
+tools, and a bounded single-agent baseline. LLM and RAG are disabled unless explicitly
+configured. Write tools only create proposals; human approval and consequential
+execution are intentionally deferred to Stage 13.
 
 ## Requirements
 
@@ -239,6 +241,29 @@ Offline scoring accepts exactly those two assessment/source inputs and no live t
 Ollama flag, smoke selector, or run ID. Input and output paths must all differ. Legacy,
 smoke, fixture, retrieval-only, previously scored, incomplete, or aggregate-forged
 artifacts are rejected before either output is written.
+
+## Stages 9–12 Authorization, Tools, and Agent Baseline
+
+Stage 9 applies authorization before protected content can enter retrieval and
+records privacy-safe authorization audit events. Stage 10 adds bounded deadlines,
+retries, circuit breaking, safe degradation, and dependency health checks.
+
+Stage 11 provides a selection-independent typed `ToolRegistry` with strict input
+schemas, per-tool timeouts, read-only integration seams, SSRF-aware allowlisted
+HTTPS handling, and structural-only secret-safe audit records. Write-classified
+registration has no executable handler; the registry can only build a proposal.
+
+Stage 12 provides an explicit provider-neutral single-agent state machine with hard
+step/retry/repetition/message limits, checkpoint and principal binding, fresh
+authorization on resume, hostile-output handling, and terminal proposal states.
+LangGraph is not currently a dependency; the rationale and migration boundary are
+recorded in `docs/adr/ADR-010-provider-neutral-agent-state-machine.md`. The local
+contract baseline and its recorded 3/3 result are in
+`docs/evaluation/stage12_baseline_v1.json`.
+
+These stages are local reference implementations, not production IAM, enterprise
+SLO, multi-agent, or production-quality claims. No Stage 13 approval/execution path
+exists yet, and no consequential action can be executed by the current baseline.
 
 ## Quality Checks
 

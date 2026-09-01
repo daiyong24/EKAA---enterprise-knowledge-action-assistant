@@ -2,7 +2,8 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 10 — RAG Reliability**. A stage may start only after
+The active stage is **Stage 12 — Single-Agent Workflow (complete; awaiting Stage 13
+authorization)**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -127,7 +128,7 @@ Stage 9 is complete.
   evaluation artifacts in adversarial integration tests.
 - **Non-goals:** Full enterprise IAM feature parity or multi-tenancy unless selected.
 
-## Stage 10 — RAG Reliability (Active)
+## Stage 10 — RAG Reliability (Complete)
 
 - **Objective:** Degrade safely across provider, database, and malformed-output
   failures.
@@ -140,7 +141,7 @@ Stage 9 is complete.
   and user-visible degradation meet documented targets.
 - **Non-goals:** Agent/tool reliability or production SLO claims without load data.
 
-## Stage 11 — Tool Calling
+## Stage 11 — Tool Calling (Complete)
 
 - **Objective:** Introduce typed, policy-classified external tools before agents.
 - **Deliverables:** Tool interface/registry, schemas, validation, read-only tools,
@@ -151,7 +152,7 @@ Stage 9 is complete.
   before the later approval path exists.
 - **Non-goals:** Autonomous loops, LangGraph, or actual consequential writes.
 
-## Stage 12 — Single-Agent Workflow
+## Stage 12 — Single-Agent Workflow (Complete)
 
 - **Objective:** Build and evaluate a bounded single-agent baseline with LangGraph.
 - **Deliverables:** Explicit state/nodes/edges, tool selection, step/retry limits,

@@ -15,8 +15,8 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 10 — RAG Reliability. Do not implement tools, agents, chat memory, or
-frontend functionality.
+Stage 12 — Single-Agent Workflow (Stage 11 complete). Do not implement chat
+memory, multi-agent architecture, frontend functionality, or consequential writes.
 
 ## Engineering Rules
 

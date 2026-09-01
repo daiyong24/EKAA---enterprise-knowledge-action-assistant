@@ -1,0 +1,35 @@
+{
+  "suite_id": "stage12-single-agent-baseline-v1",
+  "version": "1.0.0",
+  "scope": "local synthetic deterministic contract suite",
+  "model": "deterministic test policies",
+  "tasks": [
+    {
+      "id": "no-tool-answer",
+      "expected_terminal_status": "completed",
+      "expected_steps": 1
+    },
+    {
+      "id": "authorized-read-tool",
+      "expected_terminal_status": "completed",
+      "expected_steps": 2
+    },
+    {
+      "id": "write-proposal-stops",
+      "expected_terminal_status": "awaiting_approval",
+      "expected_steps": 1
+    }
+  ],
+  "recorded_results": {
+    "successful_tasks": 3,
+    "failed_tasks": 0,
+    "success_rate": 1.0,
+    "run_date": "2026-09-02",
+    "runner": "tests/unit/agent/test_workflow.py::test_baseline_artifact_contract"
+  },
+  "reproduction": {
+    "command": ".venv\\Scripts\\pytest.exe tests/unit/agent/test_workflow.py -q",
+    "determinism": "all policies and tool integrations are in-process deterministic fakes",
+    "limitations": "This is a contract baseline, not a production or population-level quality claim."
+  }
+}
