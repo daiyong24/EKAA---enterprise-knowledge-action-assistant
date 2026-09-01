@@ -15,8 +15,8 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 12 — Single-Agent Workflow (Stage 11 complete). Do not implement chat
-memory, multi-agent architecture, frontend functionality, or consequential writes.
+Stage 13/14 — Human-in-the-loop and Agent Evaluation. Do not implement chat memory,
+multi-agent architecture, frontend functionality, or unattended consequential writes.
 
 ## Engineering Rules
 

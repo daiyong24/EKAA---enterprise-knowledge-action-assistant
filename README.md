@@ -5,7 +5,7 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 12 — Single-Agent Workflow (Stages 9–12 complete; Stage 13 not started).
+Stage 13/14 — Human-in-the-loop and Agent Evaluation (Stages 9–14 complete).
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
 safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into
@@ -14,9 +14,9 @@ semantic retrieval, PostgreSQL full-text hybrid retrieval, bounded deterministic
 reranking for RAG context selection, bounded
 retrieval-augmented generation, claim-level citation validation over that evidence,
 provider-neutral identity/authorization, reliability controls, typed policy-classified
-tools, and a bounded single-agent baseline. LLM and RAG are disabled unless explicitly
-configured. Write tools only create proposals; human approval and consequential
-execution are intentionally deferred to Stage 13.
+tools, a bounded single-agent baseline, scoped human approval, and reproducible agent
+evaluation. LLM and RAG are disabled unless explicitly configured. Consequential
+execution remains an injected local boundary and is never enabled unattended.
 
 ## Requirements
 
@@ -262,8 +262,11 @@ contract baseline and its recorded 3/3 result are in
 `docs/evaluation/stage12_baseline_v1.json`.
 
 These stages are local reference implementations, not production IAM, enterprise
-SLO, multi-agent, or production-quality claims. No Stage 13 approval/execution path
-exists yet, and no consequential action can be executed by the current baseline.
+SLO, multi-agent, or production-quality claims. Stage 13/14 approval state is an
+in-memory local reference and requires a durable transactional store and manual
+reconciliation before any real external write. Stage 14 metrics require complete
+scenario/trace mapping, calibrated human review for ambiguous cases, and a versioned
+provider price schedule before cost can be reported.
 
 ## Quality Checks
 

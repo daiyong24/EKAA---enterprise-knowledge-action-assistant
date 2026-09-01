@@ -2,8 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 12 — Single-Agent Workflow (complete; awaiting Stage 13
-authorization)**. A stage may start only after
+The active stage is **Stage 13/14 — Human-in-the-loop and Agent Evaluation**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -165,6 +164,8 @@ Stage 9 is complete.
 
 ## Stage 13 — Human-in-the-loop
 
+**Status: complete in the combined Stage 13/14 local reference slice.**
+
 - **Objective:** Gate exact consequential actions on explicit human approval.
 - **Deliverables:** Approval service/state model, parameter-bound request, expiry,
   approve/reject UI/API, authorization, idempotent execution, and audit trail.
@@ -175,6 +176,8 @@ Stage 9 is complete.
 - **Non-goals:** Blanket approvals or unattended destructive actions.
 
 ## Stage 14 — Agent Evaluation
+
+**Status: complete in the combined Stage 13/14 local reference slice.**
 
 - **Objective:** Measure agent decisions and task outcomes.
 - **Deliverables:** Reviewed scenarios and metrics for tool/argument accuracy, task

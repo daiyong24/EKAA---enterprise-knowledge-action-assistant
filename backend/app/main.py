@@ -5,6 +5,7 @@ from sqlalchemy import text
 
 from backend.app.api.request_size_limit import DocumentUploadRequestSizeLimitMiddleware
 from backend.app.api.router import api_router
+from backend.app.approval import ApprovalService
 from backend.app.authorization.audit import InMemoryAuditSink
 from backend.app.authorization.identity import (
     AnonymousIdentityProvider,
@@ -109,6 +110,7 @@ def create_app(
     application.state.authorization_service = AuthorizationService(
         audit_sink=application.state.audit_sink
     )
+    application.state.approval_service = ApprovalService()
     application.state.identity_provider = (
         identity_provider or AnonymousIdentityProvider()
     )

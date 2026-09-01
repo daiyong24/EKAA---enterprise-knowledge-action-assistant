@@ -24,9 +24,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "documents",
-        sa.Column(
-            "allowed_groups", sa.JSON(), nullable=False, server_default="[]"
-        ),
+        sa.Column("allowed_groups", sa.JSON(), nullable=False, server_default="[]"),
     )
     op.create_index(
         "ix_documents_classification", "documents", ["classification"], unique=False
