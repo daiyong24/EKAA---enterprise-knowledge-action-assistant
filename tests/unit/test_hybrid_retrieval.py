@@ -222,12 +222,43 @@ def test_lexical_service_returns_sorted_results_and_exact_metadata() -> None:
         repository=Repository(),  # type: ignore[arg-type]
     )
 
-    results, exact_count = service.search_with_metadata(
-        query="INC-1042", top_k=2, allowed_document_ids=["public-document"]
-    )
+    results, exact_count = service.search_with_metadata(query="INC-1042", top_k=2)
 
     assert [item.chunk_id for item in results] == ["chunk-a", "chunk-z"]
     assert exact_count == 1
     assert service.search(query="status", top_k=1)[0].chunk_id == "chunk-a"
     with pytest.raises(ValueError):
         service.search(query="status", top_k=4)
+
+
+def test_lexical_service_drops_rows_outside_authorized_ids() -> None:
+    class Session:
+        def close(self) -> None:
+            return None
+
+    authorized = _chunk("authorized")
+    authorized = RetrievedChunk(
+        document_id="authorized-document",
+        document_name=authorized.document_name,
+        chunk_id=authorized.chunk_id,
+        chunk_index=authorized.chunk_index,
+        content=authorized.content,
+        score=authorized.score,
+        page_number=authorized.page_number,
+        section=authorized.section,
+    )
+    unauthorized = _chunk("unauthorized")
+
+    class Repository:
+        def search(self, *_: object, **__: object) -> tuple[list[RetrievedChunk], int]:
+            return [authorized, unauthorized], 0
+
+    service = LexicalRetrievalService(
+        session_factory=Session,  # type: ignore[arg-type]
+        max_top_k=3,
+        repository=Repository(),  # type: ignore[arg-type]
+    )
+    results = service.search(
+        query="secret", top_k=2, allowed_document_ids=["authorized-document"]
+    )
+    assert [item.document_id for item in results] == ["authorized-document"]

@@ -240,6 +240,9 @@ class SemanticRetrievalService:
             session.close()
         # Database ordering uses distance then ID; retaining this stable order at the
         # service boundary also protects callers supplied by a mocked repository.
+        if allowed_document_ids is not None:
+            permitted = frozenset(allowed_document_ids)
+            results = [item for item in results if item.document_id in permitted]
         return sorted(results, key=lambda item: (-item.score, item.chunk_id))
 
 
@@ -311,6 +314,9 @@ class LexicalRetrievalService:
             raise EmbeddingStorageError from exc
         finally:
             session.close()
+        if allowed_document_ids is not None:
+            permitted = frozenset(allowed_document_ids)
+            results = [item for item in results if item.document_id in permitted]
         return (
             sorted(results, key=lambda item: (-item.score, item.chunk_id)),
             exact_count,

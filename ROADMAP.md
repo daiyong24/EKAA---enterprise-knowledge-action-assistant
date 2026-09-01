@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 8 — RAG Evaluation**. A stage may start only after
+The active stage is **Stage 9 — Authentication & Authorization**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -103,7 +103,7 @@ Stage 9 is complete.
   the feature remains disabled and the finding is documented.
 - **Non-goals:** Broad RAG evaluation platform or model fine-tuning.
 
-## Stage 8 — RAG Evaluation (Active)
+## Stage 8 — RAG Evaluation
 
 - **Objective:** Establish reproducible retrieval and generation quality gates.
 - **Deliverables:** Versioned golden dataset (initial target 50 reviewed questions),
@@ -116,7 +116,7 @@ Stage 9 is complete.
 - **Non-goals:** Using LLM-as-judge without human calibration or claiming universal
   quality from one dataset.
 
-## Stage 9 — Authentication & Authorization
+## Stage 9 — Authentication & Authorization (Active)
 
 - **Objective:** Prevent unauthorized discovery and retrieval of documents.
 - **Deliverables:** Identity integration, roles/groups, document classification and

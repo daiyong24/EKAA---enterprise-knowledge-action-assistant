@@ -3,6 +3,13 @@
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.app.authorization.errors import (
+    AuthorizationUnavailableError,
+    IdentityError,
+    InvalidIdentityError,
+)
+from backend.app.authorization.http import principal_context
+from backend.app.authorization.service import AuthorizedRetrievalService
 from backend.app.core.exceptions import ApplicationError
 from backend.app.embeddings.errors import (
     EmbeddingConfigurationError,
@@ -79,20 +86,46 @@ async def search(request: Request, body: RetrievalRequest) -> RetrievalResponse:
     )
     try:
         top_k = body.top_k or settings.retrieval_default_top_k
-        if body.include_diagnostics and isinstance(service, HybridRetrievalService):
-            hybrid_result = service.search_with_diagnostics(
-                query=body.query, top_k=top_k
+        if body.include_diagnostics and (
+            isinstance(service, HybridRetrievalService)
+            or (
+                isinstance(service, AuthorizedRetrievalService)
+                and service.supports_diagnostics
             )
+        ):
+            with principal_context(request):
+                hybrid_result = service.search_with_diagnostics(
+                    query=body.query, top_k=top_k
+                )
             results = list(hybrid_result.sources)
             diagnostics = _to_diagnostics(hybrid_result.diagnostics)
         else:
-            results = service.search(query=body.query, top_k=top_k)
+            with principal_context(request):
+                results = service.search(query=body.query, top_k=top_k)
             diagnostics = None
     except ValueError as exc:
         raise ApplicationError(
             code="invalid_retrieval_request",
             message="The retrieval request is invalid.",
             status_code=422,
+        ) from exc
+    except InvalidIdentityError as exc:
+        raise ApplicationError(
+            code="invalid_identity",
+            message="Identity verification failed.",
+            status_code=401,
+        ) from exc
+    except IdentityError as exc:
+        raise ApplicationError(
+            code="identity_unavailable",
+            message="Identity verification is temporarily unavailable.",
+            status_code=503,
+        ) from exc
+    except AuthorizationUnavailableError as exc:
+        raise ApplicationError(
+            code="authorization_unavailable",
+            message="Authorization is temporarily unavailable.",
+            status_code=503,
         ) from exc
     except (
         EmbeddingConfigurationError,

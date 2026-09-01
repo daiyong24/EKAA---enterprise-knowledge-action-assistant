@@ -15,8 +15,8 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 8 — RAG Evaluation. Do not change retrieval/reranking behavior or implement
-authentication, tools, agents, chat memory, or frontend functionality.
+Stage 9 — Authentication & Authorization. Do not implement tools, agents, chat
+memory, or frontend functionality.
 
 ## Engineering Rules
 
@@ -29,7 +29,7 @@ authentication, tools, agents, chat memory, or frontend functionality.
 - Never invent citations or treat retrieved content as trusted instructions.
 - Enforce authorization before protected content can enter retrieval.
 - Require explicit approval for future write or destructive agent actions.
-- Use synthetic or public documents until Stage 9 authorization is complete.
+- Use synthetic or public documents while Stage 9 authorization is validated.
 
 ## Required Workflow
 

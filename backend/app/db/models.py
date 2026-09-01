@@ -7,6 +7,7 @@ from uuid import uuid4
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     JSON,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -27,6 +28,12 @@ class Base(DeclarativeBase):
 
 class Document(Base):
     __tablename__ = "documents"
+    __table_args__ = (
+        CheckConstraint(
+            "classification IN ('public', 'internal', 'confidential', 'restricted')",
+            name="ck_document_classification",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(
         String(32), primary_key=True, default=lambda: uuid4().hex
@@ -37,6 +44,16 @@ class Document(Base):
         String(64), nullable=False, unique=True, index=True
     )
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    classification: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="public",
+        server_default="public",
+        index=True,
+    )
+    allowed_groups: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default="[]"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now
     )

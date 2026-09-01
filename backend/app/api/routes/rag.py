@@ -5,6 +5,12 @@ from typing import Literal
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.app.authorization.errors import (
+    AuthorizationUnavailableError,
+    IdentityError,
+    InvalidIdentityError,
+)
+from backend.app.authorization.http import principal_context
 from backend.app.core.exceptions import ApplicationError
 from backend.app.embeddings.errors import (
     EmbeddingConfigurationError,
@@ -104,7 +110,8 @@ async def answer(request: Request, body: RagRequest) -> RagResponse:
         )
     service: RagService = request.app.state.rag_service
     try:
-        result = await service.answer(body.question)
+        with principal_context(request):
+            result = await service.answer(body.question)
     except (
         EmbeddingConfigurationError,
         EmbeddingProviderError,
@@ -119,6 +126,24 @@ async def answer(request: Request, body: RagRequest) -> RagResponse:
         raise ApplicationError(
             code="rag_generation_unavailable",
             message="Evidence-bounded answer generation is temporarily unavailable.",
+            status_code=503,
+        ) from exc
+    except InvalidIdentityError as exc:
+        raise ApplicationError(
+            code="invalid_identity",
+            message="Identity verification failed.",
+            status_code=401,
+        ) from exc
+    except IdentityError as exc:
+        raise ApplicationError(
+            code="identity_unavailable",
+            message="Identity verification is temporarily unavailable.",
+            status_code=503,
+        ) from exc
+    except AuthorizationUnavailableError as exc:
+        raise ApplicationError(
+            code="authorization_unavailable",
+            message="Authorization is temporarily unavailable.",
             status_code=503,
         ) from exc
     except RagProviderRejectedError as exc:

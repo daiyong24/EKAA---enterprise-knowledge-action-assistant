@@ -216,6 +216,23 @@ def test_retrieval_orders_scores_deterministically_and_preserves_metadata() -> N
     assert results[0].section == "One"
 
 
+def test_retrieval_service_defense_in_depth_drops_rows_outside_authorized_ids() -> None:
+    _, session_factory = _database_with_chunks(0)
+    service = SemanticRetrievalService(
+        session_factory=session_factory,
+        provider=_PlannedProvider([_batch(1)]),
+        model="test-model",
+        dimensions=3,
+        max_top_k=5,
+        repository=_RankingRepository(),  # type: ignore[arg-type]
+    )
+    results = service.search(
+        query="synthetic query", top_k=3, allowed_document_ids=["doc-a"]
+    )
+    assert results
+    assert {result.document_id for result in results} == {"doc-a"}
+
+
 def test_retrieval_returns_no_results_and_enforces_top_k() -> None:
     class EmptyRepository:
         def search(self, _: Session, **__: object) -> list[RetrievedChunk]:

@@ -2,6 +2,15 @@ from fastapi import FastAPI
 
 from backend.app.api.request_size_limit import DocumentUploadRequestSizeLimitMiddleware
 from backend.app.api.router import api_router
+from backend.app.authorization.audit import InMemoryAuditSink
+from backend.app.authorization.identity import (
+    AnonymousIdentityProvider,
+    IdentityProvider,
+)
+from backend.app.authorization.service import (
+    AuthorizationService,
+    AuthorizedRetrievalService,
+)
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.exceptions import register_exception_handlers
 from backend.app.core.logging import configure_logging
@@ -37,6 +46,7 @@ def create_app(
     provider: LLMProvider | None = None,
     embedding_provider: EmbeddingProvider | None = None,
     reranker_provider: RerankerProvider | None = None,
+    identity_provider: IdentityProvider | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
@@ -67,6 +77,14 @@ def create_app(
         dimensions=resolved_settings.embedding_dimensions,
     )
     session_factory = create_session_factory(database_engine)
+    application.state.session_factory = session_factory
+    application.state.audit_sink = InMemoryAuditSink()
+    application.state.authorization_service = AuthorizationService(
+        audit_sink=application.state.audit_sink
+    )
+    application.state.identity_provider = (
+        identity_provider or AnonymousIdentityProvider()
+    )
     application.state.ingestion_service = IngestionService(
         session_factory=session_factory,
         max_file_size_bytes=resolved_settings.ingestion_max_file_size_bytes,
@@ -89,9 +107,11 @@ def create_app(
         dimensions=resolved_settings.embedding_dimensions,
         max_top_k=resolved_settings.retrieval_max_top_k,
     )
-    application.state.retrieval_service = semantic_retrieval_service
+    retrieval_service: SemanticRetrievalService | HybridRetrievalService = (
+        semantic_retrieval_service
+    )
     if resolved_settings.hybrid_retrieval_enabled:
-        application.state.retrieval_service = HybridRetrievalService(
+        retrieval_service = HybridRetrievalService(
             semantic_service=semantic_retrieval_service,
             lexical_service=LexicalRetrievalService(
                 session_factory=session_factory,
@@ -108,6 +128,11 @@ def create_app(
             provider=reranker_provider or DeterministicOverlapReranker(),
             timeout_seconds=resolved_settings.reranking_timeout_seconds,
         )
+    application.state.retrieval_service = AuthorizedRetrievalService(
+        retrieval_service=retrieval_service,
+        authorization_service=application.state.authorization_service,
+        session_factory=session_factory,
+    )
     application.state.rag_service = RagService(
         retrieval_service=application.state.retrieval_service,
         provider=llm_provider,
