@@ -15,9 +15,10 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 17/18 — Docker + Cloud Deployment and CI/CD Hardening. Do not implement chat
-memory, multi-agent architecture, frontend functionality, or unattended consequential
-writes.
+Stage 19 — Multi-Agent Architecture. Do not implement chat memory, frontend
+functionality, or unattended consequential writes. Multi-agent work must remain a
+bounded, provider-neutral, evaluation-only candidate until the Stage 14 comparison
+justifies adoption.
 
 ## Engineering Rules
 

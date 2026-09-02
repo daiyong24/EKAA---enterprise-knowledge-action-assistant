@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from collections import Counter
@@ -18,6 +19,12 @@ from backend.app.agent_evaluation.models import (
 
 def _canonical(value: object) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def scenario_suite_fingerprint(scenarios: Sequence[Scenario]) -> str:
+    """Fingerprint the complete immutable scenario content, not just its version."""
+    payload = [scenario.model_dump(mode="json") for scenario in scenarios]
+    return hashlib.sha256(_canonical(payload).encode("utf-8")).hexdigest()
 
 
 def _same_call(actual: object, expected: ExpectedToolCall) -> bool:
@@ -123,6 +130,8 @@ def evaluate_batch(
     *,
     run_id: str,
     price_per_1k_tokens: float | None = None,
+    evaluation_version: str | None = None,
+    corpus_version: str | None = None,
 ) -> BatchEvaluation:
     """Evaluate a complete declared suite and reject missing/duplicate trace mapping."""
     by_id = {trace.scenario_id: trace for trace in traces}
@@ -188,6 +197,9 @@ def evaluate_batch(
         failure_categories=tuple(category for category, _ in categories.most_common()),
         prioritized_fixes=fixes,
         results=results,
+        evaluation_version=evaluation_version,
+        corpus_version=corpus_version,
+        dataset_fingerprint=scenario_suite_fingerprint(scenarios),
     )
 
 

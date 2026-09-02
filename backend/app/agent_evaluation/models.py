@@ -168,9 +168,25 @@ class BatchEvaluation(BaseModel):
     failure_categories: tuple[str, ...] = ()
     prioritized_fixes: tuple[str, ...] = ()
     results: tuple[AgentEvaluationResult, ...] = Field(min_length=1)
+    evaluation_version: str | None = Field(default=None, max_length=64)
+    corpus_version: str | None = Field(default=None, max_length=64)
+    dataset_fingerprint: str | None = Field(default=None, max_length=64)
 
     @model_validator(mode="after")
     def validate_aggregate_integrity(self) -> BatchEvaluation:
+        for label, version_value in (
+            ("evaluation version", self.evaluation_version),
+            ("corpus version", self.corpus_version),
+        ):
+            if version_value is not None and not re.fullmatch(
+                r"[A-Za-z0-9][A-Za-z0-9._/-]{0,63}", version_value
+            ):
+                raise ValueError(f"{label} is invalid")
+        if self.dataset_fingerprint is not None and (
+            len(self.dataset_fingerprint) != 64
+            or any(c not in "0123456789abcdef" for c in self.dataset_fingerprint)
+        ):
+            raise ValueError("dataset fingerprint is invalid")
         if self.scenario_count != len(self.results):
             raise ValueError("scenario count must equal result count")
         if len({result.scenario_id for result in self.results}) != self.scenario_count:

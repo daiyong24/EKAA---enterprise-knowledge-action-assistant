@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 17/18 — Docker + Cloud Deployment and CI/CD Hardening**. A stage may start only after
+The active stage is **Stage 19 — Multi-Agent Architecture**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -246,6 +246,8 @@ Stage 9 is complete.
 
 ## Stage 19 — Multi-Agent Architecture
 
+**Status: complete as a local bounded candidate; single-agent remains default.**
+
 - **Objective:** Adopt multiple agents only if a measured single-agent limitation
   cannot be solved more simply.
 - **Deliverables:** Written hypothesis, candidate architecture, shared-state and
@@ -253,8 +255,9 @@ Stage 9 is complete.
   decision.
 - **Tests:** Routing, handoff loss, loops, conflicting outputs, permissions, combined
   budget, partial failure, and comparative task suite.
-- **Acceptance:** Statistically and operationally meaningful benefit exceeds added
-  latency, cost, and failure surface; otherwise retain single agent.
+- **Acceptance:** An authoritative, independently verified powered analysis shows
+  statistically and operationally meaningful benefit exceeding added latency, cost,
+  and failure surface; otherwise retain single agent.
 - **Non-goals:** Multi-agent for résumé optics or unbounded delegation.
 
 ## Stage 20 — Portfolio Finalization

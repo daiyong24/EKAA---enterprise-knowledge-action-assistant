@@ -5,7 +5,8 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 17/18 — Docker + Cloud Deployment and CI/CD Hardening (Stages 9–16 complete).
+Stage 19 — Multi-Agent Architecture (Stages 9–18 complete; multi-agent candidate
+measured locally and single-agent retained as default).
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
 safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into
@@ -18,7 +19,9 @@ reranking for RAG context selection, bounded
   evaluation, observability/security controls, reproducible Docker/Compose deployment,
   and gated CI/CD release contracts. LLM and RAG are disabled unless explicitly
   configured. Consequential execution remains an injected local boundary and is never
-  enabled unattended.
+  enabled unattended. Stage 19 adds a bounded, provider-neutral specialist-route
+  experiment with immutable handoffs and combined budgets; it does not replace the
+  single-agent default or execute external actions.
 
 ## Requirements
 
@@ -75,6 +78,21 @@ manual release workflow requires their reusable workflow to pass, an immutable
 sha256 image digest, staged environment approvals, and supports explicit rollback by
 digest. It does not apply AWS infrastructure in this reference repository. See
 `docs/deployment/STAGE_17_DEPLOYMENT.md` and `docs/deployment/STAGE_18_CICD.md`.
+
+## Stage 19 Multi-Agent Architecture
+
+Stage 19 provides a deterministic candidate route (`researcher` → `verifier` →
+`synthesizer`) behind an explicit experiment flag. It preserves authorization and
+Stage 13 approval digests, rejects handoff loss, loops, conflicting claims, partial
+failures, and combined-budget exhaustion, and can fall back to the existing
+single-agent boundary. It requires the evaluation-read-only capability token and
+returns evaluation-only results rather than user-facing factual answers. The
+comparison harness uses complete Stage 14 replicate artifacts, an authoritative
+scenario manifest to recompute suite fingerprints, provenance bindings, cost
+evidence, powered statistical evidence, and positive benefit gates; without the
+manifest or powered evidence, adoption is retained as single-agent. See
+`docs/STAGE_19_MULTI_AGENT_DESIGN.md` and
+`docs/STAGE_19_REPORT.md`.
 
 ## Stage 3 Retrieval
 

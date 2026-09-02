@@ -21,6 +21,7 @@ Client -> API -> Application services
                     |-> Ingestion -> Embeddings -> Storage
                     |-> Retrieval -> Context -> Generation -> Validation
                     |-> Agent -> Approval service -> Tools
+                    |-> bounded multi-agent candidate -> Agent/Approval boundaries
                     `-> Evaluation / telemetry / audit
 ```
 
@@ -70,3 +71,13 @@ Local process execution is sufficient in Stage 0. Containers, PostgreSQL, fronte
 cloud topology, tenancy, backup/recovery, and production SLOs are deliberately
 introduced only in their roadmap stages. Security and observability have minimum
 cross-cutting requirements in every stage and dedicated hardening stages later.
+
+## Stage 19 Multi-Agent Boundary
+
+Stage 19 adds only a bounded, provider-neutral multi-agent experiment boundary.
+The deterministic router keeps the Stage 14 single-agent workflow as default;
+specialist workers receive immutable state and digest-bound handoffs. Workers cannot
+execute tools or external writes, and approval/authorization context must remain
+unchanged across every handoff. Complete-batch comparisons require an authoritative
+scenario manifest to recompute provenance fingerprints; without it, the candidate
+is retained or rolled back to single-agent. See `docs/STAGE_19_MULTI_AGENT_DESIGN.md`.
