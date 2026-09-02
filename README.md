@@ -5,22 +5,25 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 15/16 — Observability / LLMOps and Security Hardening (Stages 9–14 complete).
+Stage 17/18 — Docker + Cloud Deployment and CI/CD Hardening (Stages 9–16 complete).
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
 safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into
 normalized relational chunks, provider-neutral embeddings and PostgreSQL/pgvector
 semantic retrieval, PostgreSQL full-text hybrid retrieval, bounded deterministic
 reranking for RAG context selection, bounded
-retrieval-augmented generation, claim-level citation validation over that evidence,
-provider-neutral identity/authorization, reliability controls, typed policy-classified
-tools, a bounded single-agent baseline, scoped human approval, and reproducible agent
-evaluation. LLM and RAG are disabled unless explicitly configured. Consequential
-execution remains an injected local boundary and is never enabled unattended.
+  retrieval-augmented generation, claim-level citation validation over that evidence,
+  provider-neutral identity/authorization, reliability controls, typed policy-classified
+  tools, a bounded single-agent baseline, scoped human approval, and reproducible agent
+  evaluation, observability/security controls, reproducible Docker/Compose deployment,
+  and gated CI/CD release contracts. LLM and RAG are disabled unless explicitly
+  configured. Consequential execution remains an injected local boundary and is never
+  enabled unattended.
 
 ## Requirements
 
 - Python 3.12+
+- Docker Desktop (for the optional Compose path)
 
 ## Local Setup
 
@@ -56,6 +59,22 @@ curl.exe -X POST http://127.0.0.1:8000/api/documents -F "file=@sample.txt;type=t
 
 See `docs/STAGE_2_INGESTION_DESIGN.md` for MIME rules, idempotency, data handling,
 and the intentionally excluded capabilities.
+
+## Stage 17/18 Deployment and CI/CD
+
+The supported local deployment is Docker Compose with a non-root API image and a
+PostgreSQL/pgvector service. Copy `.env.docker.example` to an untracked `.env`, then
+run `docker compose config` followed by `docker compose up --build -d`. The API health
+check is available at `http://127.0.0.1:8000/health`. Do not put real credentials in
+Compose or the repository. Staging/production use the documented AWS reference
+topology (ALB + ECS Fargate + private RDS + Secrets Manager) and require a separately
+reviewed migration job.
+
+CI runs quality, PostgreSQL integration, evaluation, security, and image jobs. The
+manual release workflow requires their reusable workflow to pass, an immutable
+sha256 image digest, staged environment approvals, and supports explicit rollback by
+digest. It does not apply AWS infrastructure in this reference repository. See
+`docs/deployment/STAGE_17_DEPLOYMENT.md` and `docs/deployment/STAGE_18_CICD.md`.
 
 ## Stage 3 Retrieval
 

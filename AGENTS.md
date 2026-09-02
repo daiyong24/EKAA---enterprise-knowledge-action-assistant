@@ -15,8 +15,9 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 15/16 — Observability / LLMOps and Security Hardening. Do not implement chat memory,
-multi-agent architecture, frontend functionality, or unattended consequential writes.
+Stage 17/18 — Docker + Cloud Deployment and CI/CD Hardening. Do not implement chat
+memory, multi-agent architecture, frontend functionality, or unattended consequential
+writes.
 
 ## Engineering Rules
 

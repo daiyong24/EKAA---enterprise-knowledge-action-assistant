@@ -1,0 +1,54 @@
+name: ekaa
+
+services:
+  db:
+    image: pgvector/pgvector@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in an untracked .env}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in an untracked .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in an untracked .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [backend]
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      EKAA_ENVIRONMENT: ${EKAA_ENVIRONMENT:-development}
+      EKAA_DEBUG: ${EKAA_DEBUG:-false}
+      EKAA_LOG_LEVEL: ${EKAA_LOG_LEVEL:-INFO}
+      EKAA_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?set POSTGRES_USER in an untracked .env}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in an untracked .env}@db:5432/${POSTGRES_DB:?set POSTGRES_DB in an untracked .env}
+      # Development convenience only. Staging/production release jobs set this false
+      # and execute a separate, reviewed migration job before rollout.
+      EKAA_RUN_MIGRATIONS: ${EKAA_RUN_MIGRATIONS:-true}
+      EKAA_LLM_ENABLED: ${EKAA_LLM_ENABLED:-false}
+      EKAA_LLM_BASE_URL: ${EKAA_LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      EKAA_LLM_API_KEY: ${EKAA_LLM_API_KEY:-ollama-local}
+      EKAA_LLM_MODEL: ${EKAA_LLM_MODEL:-qwen3:4b}
+    ports:
+      - "127.0.0.1:${EKAA_API_PORT:-8000}:8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    networks: [backend]
+
+networks:
+  backend:
+    internal: true
+
+volumes:
+  postgres_data:

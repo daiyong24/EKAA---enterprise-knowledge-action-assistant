@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -12,13 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
           cache: pip
       - name: Install project
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+        run: python -m pip install -c constraints.txt -e ".[dev]"
       - name: Lint
         run: ruff check .
       - name: Format
@@ -28,17 +29,110 @@ jobs:
       - name: Test
         run: pytest --cov=backend --cov-report=term-missing
 
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
+        env:
+          POSTGRES_DB: ekaa
+          POSTGRES_USER: ekaa
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ekaa -d ekaa"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project
+        run: python -m pip install -c constraints.txt -e ".[dev]"
+      - name: PostgreSQL integration tests
+        env:
+          EKAA_TEST_POSTGRES_URL: postgresql+psycopg://ekaa:ci-only-password@127.0.0.1:5432/ekaa
+        run: pytest tests/integration -q
+
+  evaluation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project
+        run: python -m pip install -c constraints.txt -e ".[dev]"
+      - name: Evaluation and deployment-policy tests
+        run: pytest tests/unit/test_evaluation.py tests/unit/test_agent_evaluation.py tests/unit/test_deployment.py -q
+
   security:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
       - name: Install audit tools
-        run: python -m pip install --upgrade pip pip-audit detect-secrets && python -m pip install .
+        run: python -m pip install -c constraints.txt pip-audit detect-secrets && python -m pip install -c constraints.txt .
       - name: Dependency vulnerability audit
         run: pip-audit --strict
       - name: Secret scan
-        run: detect-secrets scan --all-files --exclude-files '(^|/)\.git/' --exclude-files '(^|/)\.venv/'
+        run: |
+          detect-secrets scan --all-files \
+            --exclude-files '(^|/)\.git/' --exclude-files '(^|/)\.venv/' \
+            > /tmp/detect-secrets.json
+          python scripts/verify_secret_scan.py \
+            --scan /tmp/detect-secrets.json --baseline .secrets.baseline
+
+  image:
+    needs: [quality, integration, evaluation, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build immutable image
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: Dockerfile
+          tags: ekaa:${{ github.sha }}
+          provenance: mode=max
+          outputs: type=oci,dest=/tmp/ekaa-image.tar
+      - name: Scan image for HIGH and CRITICAL vulnerabilities
+        uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
+        with:
+          input: /tmp/ekaa-image.tar
+          format: table
+          exit-code: "1"
+          ignore-unfixed: false
+          severity: HIGH,CRITICAL
+      - name: Export immutable image artifact and provenance record
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          test -n "$IMAGE_DIGEST"
+          printf '{"schema_version":1,"image_digest":"%s","commit_sha":"%s","builder":"buildkit","attestation_type":"buildkit-provenance-v1"}\n' \
+            "$IMAGE_DIGEST" "$COMMIT_SHA" > /tmp/ekaa-provenance.json
+      - name: Upload image artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ekaa-image-${{ github.sha }}
+          path: /tmp/ekaa-image.tar
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload provenance record
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ekaa-provenance-${{ github.sha }}
+          path: /tmp/ekaa-provenance.json
+          if-no-files-found: error
+          retention-days: 7

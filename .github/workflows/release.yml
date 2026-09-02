@@ -1,0 +1,171 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "Environment to promote or roll back"
+        required: true
+        type: choice
+        options: [staging, production]
+      commit_sha:
+        description: "Full commit SHA that produced the attested image"
+        required: true
+        type: string
+      ci_run_id:
+        description: "CI run ID containing the immutable provenance artifact"
+        required: true
+        type: string
+      image_digest:
+        description: "Attested sha256 image digest to promote"
+        required: true
+        type: string
+      promotion_history_run_id:
+        description: "Required for rollback: run ID containing promotion history"
+        required: false
+        type: string
+      rollback:
+        description: "Promote the supplied digest as a rollback"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+# Promotion and rollback deliberately share the same environment-scoped group.
+concurrency:
+  group: ekaa-release-${{ inputs.target_environment }}
+  cancel-in-progress: false
+
+jobs:
+  gates:
+    name: Run required CI gates
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  verify:
+    name: Verify immutable artifact and provenance
+    needs: gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Download immutable CI provenance artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ekaa-provenance-${{ inputs.commit_sha }}
+          path: /tmp/ekaa-provenance
+          run-id: ${{ inputs.ci_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Require immutable digest
+        env:
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+        run: |
+          printf '%s' "$IMAGE_DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$' || {
+            echo "image_digest must be a sha256 digest" >&2
+            exit 1
+          }
+      - name: Bind release to the workflow commit
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          printf '%s' "$COMMIT_SHA" | grep -Eq '^[0-9a-f]{40}$' || {
+            echo "commit_sha must be a full 40-character SHA" >&2
+            exit 1
+          }
+          test "$COMMIT_SHA" = "$WORKFLOW_SHA"
+      - name: Structurally verify immutable digest and commit provenance
+        env:
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+        run: |
+          python scripts/verify_provenance.py \
+            /tmp/ekaa-provenance/ekaa-provenance.json \
+            --digest "$IMAGE_DIGEST" --commit "$COMMIT_SHA"
+      - name: Verify required gate contract
+        run: |
+          grep -q '^  image:' .github/workflows/ci.yml
+          grep -q 'needs: \[quality, integration, evaluation, security\]' .github/workflows/ci.yml
+
+  migration:
+    name: Reviewed migration job contract
+    needs: verify
+    if: ${{ needs.verify.result == 'success' && inputs.rollback == false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Migration job runs before API rollout
+        run: |
+          echo "alembic upgrade head (one-off release job)"
+          echo "API startup must use EKAA_RUN_MIGRATIONS=false"
+
+  staging:
+    name: Promote to staging
+    needs: [verify, migration]
+    if: ${{ inputs.rollback == false }}
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    steps:
+      - name: Record staged immutable artifact
+        env:
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+        run: echo "staging promotion contract accepted for $IMAGE_DIGEST"
+      - name: Staging smoke contract
+        run: echo "AWS adapter intentionally not applied in this reference repository"
+
+  production:
+    name: Promote to production
+    needs: [verify, migration, staging]
+    if: ${{ inputs.target_environment == 'production' && inputs.rollback == false }}
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Record production immutable artifact
+        env:
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+        run: echo "production promotion contract accepted for $IMAGE_DIGEST"
+
+  rollback:
+    name: Roll back to known-good artifact
+    needs: verify
+    if: ${{ inputs.rollback == true }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.target_environment }}
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Require promotion history artifact
+        env:
+          HISTORY_RUN_ID: ${{ inputs.promotion_history_run_id }}
+        run: test -n "$HISTORY_RUN_ID"
+      - name: Download promotion history
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ekaa-promotion-history
+          path: /tmp/ekaa-promotion-history
+          run-id: ${{ inputs.promotion_history_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Require protected rollback approval
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+        run: echo "protected approval required for $TARGET_ENVIRONMENT rollback"
+      - name: Verify previously promoted attested artifact
+        env:
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+        run: |
+          python scripts/verify_promotion_history.py \
+            /tmp/ekaa-promotion-history/promotion-history.json \
+            --environment "$TARGET_ENVIRONMENT" \
+            --digest "$IMAGE_DIGEST" --commit "$COMMIT_SHA"

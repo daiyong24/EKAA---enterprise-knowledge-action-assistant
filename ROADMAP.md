@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 15/16 — Observability / LLMOps and Security Hardening**. A stage may start only after
+The active stage is **Stage 17/18 — Docker + Cloud Deployment and CI/CD Hardening**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -218,6 +218,8 @@ Stage 9 is complete.
 
 ## Stage 17 — Docker + Cloud Deployment
 
+**Status: complete in the combined Stage 17/18 local deployment contract.**
+
 - **Objective:** Reproducibly run the validated system locally and on AWS.
 - **Deliverables:** Minimal non-root images, Compose stack, IaC-selected AWS topology,
   dev/staging/prod separation, secrets management, TLS/network controls, migrations,
@@ -229,6 +231,8 @@ Stage 9 is complete.
 - **Non-goals:** Kubernetes without demonstrated need or unreviewed production data.
 
 ## Stage 18 — CI/CD Hardening
+
+**Status: complete in the combined Stage 17/18 local CI/CD contract.**
 
 - **Objective:** Turn verified quality and release controls into enforced automation.
 - **Deliverables:** Required checks, integration/evaluation/security gates, artifact

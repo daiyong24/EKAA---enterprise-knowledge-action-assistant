@@ -1,0 +1,27 @@
+.git
+.github
+.venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+.coverage
+.env
+.env.*
+!.env.example
+.secrets.baseline
+.secrets
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql
+*.tar
+backups/
+backup/
+
+# Local evaluation artifacts and operator material
+docs/evaluation/artifacts
+*.jsonl
+*.log
