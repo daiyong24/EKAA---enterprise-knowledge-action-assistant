@@ -1,6 +1,8 @@
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from contextlib import nullcontext
+from time import perf_counter
 
 from backend.app.llm.errors import (
     ChatOutputError,
@@ -17,6 +19,8 @@ from backend.app.llm.models import ChatResult
 from backend.app.llm.policy import StageOneResponsePolicy
 from backend.app.llm.prompt_builder import PromptBuilder
 from backend.app.llm.provider import LLMProvider
+from backend.app.observability.metrics import MetricRegistry
+from backend.app.observability.tracing import Tracer
 from backend.app.reliability.backoff import BackoffPolicy
 from backend.app.reliability.provider import ProviderCircuitOpenError
 
@@ -38,6 +42,8 @@ class ChatService:
         sleep: Sleep = asyncio.sleep,
         backoff_policy: BackoffPolicy | None = None,
         deadline_seconds: float | None = None,
+        tracer: Tracer | None = None,
+        metrics: MetricRegistry | None = None,
     ) -> None:
         self._provider = provider
         self._prompt_builder = prompt_builder
@@ -47,15 +53,40 @@ class ChatService:
         self._sleep = sleep
         self._backoff_policy = backoff_policy
         self._deadline_seconds = deadline_seconds
+        self._tracer = tracer
+        self._metrics = metrics
 
     async def chat(self, user_message: str) -> ChatResult:
-        if self._deadline_seconds is None:
-            return await self._chat(user_message)
+        started = perf_counter()
+        outcome = "success"
+        context = (
+            self._tracer.span("llm.chat", attributes={"llm.operation": "chat"})
+            if self._tracer is not None
+            else nullcontext()
+        )
         try:
-            async with asyncio.timeout(self._deadline_seconds):
-                return await self._chat(user_message)
-        except TimeoutError as exc:
-            raise ChatUnavailableError("request deadline exceeded") from exc
+            with context:
+                if self._deadline_seconds is None:
+                    return await self._chat(user_message)
+                try:
+                    async with asyncio.timeout(self._deadline_seconds):
+                        return await self._chat(user_message)
+                except TimeoutError as exc:
+                    raise ChatUnavailableError("request deadline exceeded") from exc
+        except BaseException:
+            outcome = "error"
+            raise
+        finally:
+            if self._metrics is not None:
+                self._metrics.inc(
+                    "ekaa_llm_operations_total",
+                    labels={"operation": "chat", "outcome": outcome},
+                )
+                self._metrics.observe(
+                    "ekaa_llm_operation_duration_ms",
+                    (perf_counter() - started) * 1000,
+                    labels={"operation": "chat"},
+                )
 
     async def _chat(self, user_message: str) -> ChatResult:
         policy_response = self._response_policy.pre_provider_response(user_message)

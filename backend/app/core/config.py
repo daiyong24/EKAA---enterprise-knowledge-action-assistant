@@ -73,6 +73,12 @@ class Settings(BaseSettings):
     )
     ingestion_chunk_size_characters: int = Field(default=1_200, ge=100, le=10_000)
     ingestion_chunk_overlap_characters: int = Field(default=200, ge=0, le=2_000)
+    observability_enabled: bool = True
+    observability_sample_rate: float = Field(default=1.0, ge=0, le=1)
+    observability_max_series: int = Field(default=2_000, ge=100, le=100_000)
+    observability_max_spans: int = Field(default=10_000, ge=100, le=100_000)
+    security_rate_limit_capacity: int = Field(default=60, ge=1, le=10_000)
+    security_rate_limit_refill_per_second: float = Field(default=1.0, gt=0, le=1_000)
 
     @field_validator("llm_base_url")
     @classmethod

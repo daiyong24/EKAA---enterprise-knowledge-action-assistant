@@ -5,7 +5,7 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 13/14 — Human-in-the-loop and Agent Evaluation (Stages 9–14 complete).
+Stage 15/16 — Observability / LLMOps and Security Hardening (Stages 9–14 complete).
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
 safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into

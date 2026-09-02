@@ -34,6 +34,9 @@ from backend.app.llm.policy import StageOneResponsePolicy
 from backend.app.llm.prompt_builder import PromptBuilder
 from backend.app.llm.provider import LLMProvider, OpenAICompatibleProvider
 from backend.app.llm.service import ChatService
+from backend.app.observability.metrics import MetricRegistry
+from backend.app.observability.middleware import ObservabilityMiddleware
+from backend.app.observability.tracing import InMemoryTraceExporter, Tracer
 from backend.app.rag.citations import CitationOutputParser, CitationValidator
 from backend.app.rag.context import ContextBuilder
 from backend.app.rag.prompt_builder import RagPromptBuilder
@@ -50,6 +53,7 @@ from backend.app.reranking.provider import (
     RerankerProvider,
 )
 from backend.app.reranking.service import RerankingService
+from backend.app.security.rate_limit import InMemoryRateLimiter, RateLimitMiddleware
 
 
 def create_app(
@@ -68,6 +72,31 @@ def create_app(
         version="0.1.0",
     )
     application.state.settings = resolved_settings
+    metrics = MetricRegistry(max_series=resolved_settings.observability_max_series)
+    trace_exporter = InMemoryTraceExporter(
+        max_spans=resolved_settings.observability_max_spans
+    )
+    application.state.metrics = metrics
+    application.state.trace_exporter = trace_exporter
+    application.state.tracer = (
+        Tracer(trace_exporter, sample_rate=resolved_settings.observability_sample_rate)
+        if resolved_settings.observability_enabled
+        else None
+    )
+    application.state.rate_limiter = InMemoryRateLimiter(
+        capacity=resolved_settings.security_rate_limit_capacity,
+        refill_per_second=resolved_settings.security_rate_limit_refill_per_second,
+    )
+    application.add_middleware(
+        RateLimitMiddleware, limiter=application.state.rate_limiter
+    )
+    if resolved_settings.observability_enabled:
+        application.add_middleware(
+            ObservabilityMiddleware,
+            tracer=application.state.tracer,
+            metrics=metrics,
+            api_prefix=resolved_settings.api_prefix,
+        )
     application.add_middleware(
         DocumentUploadRequestSizeLimitMiddleware,
         path=f"{resolved_settings.api_prefix}/api/documents",
@@ -93,6 +122,8 @@ def create_app(
         retry_delay_seconds=resolved_settings.llm_retry_delay_seconds,
         backoff_policy=backoff_policy,
         deadline_seconds=resolved_settings.reliability_chat_deadline_seconds,
+        tracer=application.state.tracer,
+        metrics=metrics if resolved_settings.observability_enabled else None,
     )
     database_engine = create_database_engine(
         resolved_settings.database_url,
@@ -191,6 +222,8 @@ def create_app(
         retry_delay_seconds=resolved_settings.llm_retry_delay_seconds,
         backoff_policy=backoff_policy,
         deadline_seconds=resolved_settings.reliability_rag_deadline_seconds,
+        tracer=application.state.tracer,
+        metrics=metrics if resolved_settings.observability_enabled else None,
     )
 
     async def database_health_check() -> None:

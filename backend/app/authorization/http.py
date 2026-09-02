@@ -9,10 +9,14 @@ from backend.app.authorization.errors import IdentityError, InvalidIdentityError
 from backend.app.authorization.identity import IdentityProvider
 from backend.app.authorization.models import AuthorizationAuditEvent, Principal
 from backend.app.authorization.service import PrincipalContext
+from backend.app.observability.tracing import current_correlation_id
 
 
 def correlation_id(request: Request) -> str:
     """Use a bounded caller correlation ID or generate one; never use request text."""
+    active = current_correlation_id()
+    if active:
+        return active
     value = request.headers.get("x-correlation-id", "")
     if len(value) <= 128 and all(
         character.isalnum() or character in "-_" for character in value

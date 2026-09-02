@@ -15,7 +15,7 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 13/14 — Human-in-the-loop and Agent Evaluation. Do not implement chat memory,
+Stage 15/16 — Observability / LLMOps and Security Hardening. Do not implement chat memory,
 multi-agent architecture, frontend functionality, or unattended consequential writes.
 
 ## Engineering Rules

@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 13/14 — Human-in-the-loop and Agent Evaluation**. A stage may start only after
+The active stage is **Stage 15/16 — Observability / LLMOps and Security Hardening**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -191,6 +191,8 @@ Stage 9 is complete.
 
 ## Stage 15 — Observability / LLMOps
 
+**Status: complete in the combined Stage 15/16 local reference slice.**
+
 - **Objective:** Correlate and monitor the full AI request lifecycle safely.
 - **Deliverables:** OpenTelemetry traces, Prometheus metrics, Grafana dashboards,
   correlation IDs, prompt/content redaction policy, sampling, alerts, and runbooks.
@@ -201,6 +203,8 @@ Stage 9 is complete.
 - **Non-goals:** Treating dashboards as reliability without operational response.
 
 ## Stage 16 — Security Hardening
+
+**Status: complete in the combined Stage 15/16 local reference slice.**
 
 - **Objective:** Threat-model and adversarially validate the complete AI system.
 - **Deliverables:** Threat model, prompt/tool injection controls, file and SSRF

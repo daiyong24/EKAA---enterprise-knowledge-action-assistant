@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from contextlib import nullcontext
+from time import perf_counter
 from typing import Protocol
 
 from backend.app.embeddings.models import RetrievedChunk
@@ -18,6 +20,8 @@ from backend.app.llm.errors import (
 )
 from backend.app.llm.models import ChatPrompt, ChatResult, TokenUsage
 from backend.app.llm.provider import LLMProvider
+from backend.app.observability.metrics import MetricRegistry
+from backend.app.observability.tracing import Tracer
 from backend.app.rag.citations import (
     CitationOutputError,
     CitationOutputParser,
@@ -71,6 +75,8 @@ class RagService:
         sleep: Sleep = asyncio.sleep,
         backoff_policy: BackoffPolicy | None = None,
         deadline_seconds: float | None = None,
+        tracer: Tracer | None = None,
+        metrics: MetricRegistry | None = None,
     ) -> None:
         self._retrieval_service = retrieval_service
         self._provider = provider
@@ -92,15 +98,40 @@ class RagService:
         self._sleep = sleep
         self._backoff_policy = backoff_policy
         self._deadline_seconds = deadline_seconds
+        self._tracer = tracer
+        self._metrics = metrics
 
     async def answer(self, question: str) -> RagAnswerResult:
-        if self._deadline_seconds is None:
-            return await self._answer(question)
+        started = perf_counter()
+        outcome = "success"
+        context = (
+            self._tracer.span("rag.answer", attributes={"rag.operation": "answer"})
+            if self._tracer is not None
+            else nullcontext()
+        )
         try:
-            async with asyncio.timeout(self._deadline_seconds):
-                return await self._answer(question)
-        except TimeoutError as exc:
-            raise RagUnavailableError("request deadline exceeded") from exc
+            with context:
+                if self._deadline_seconds is None:
+                    return await self._answer(question)
+                try:
+                    async with asyncio.timeout(self._deadline_seconds):
+                        return await self._answer(question)
+                except TimeoutError as exc:
+                    raise RagUnavailableError("request deadline exceeded") from exc
+        except BaseException:
+            outcome = "error"
+            raise
+        finally:
+            if self._metrics is not None:
+                self._metrics.inc(
+                    "ekaa_rag_operations_total",
+                    labels={"operation": "answer", "outcome": outcome},
+                )
+                self._metrics.observe(
+                    "ekaa_rag_operation_duration_ms",
+                    (perf_counter() - started) * 1000,
+                    labels={"operation": "answer"},
+                )
 
     async def _answer(self, question: str) -> RagAnswerResult:
         # Retrieval is a synchronous persistence boundary. Running it in a worker
