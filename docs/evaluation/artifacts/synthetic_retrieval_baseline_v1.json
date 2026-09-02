@@ -18,8 +18,8 @@
     "calibration_id": null,
     "configuration_sha256": "6b9bc743af66103d96d24b9fc96a2e44e46ad7cce20e62e910ee02d3f74ead08",
     "model_identity": null,
-    "policy_sha256": "f458c04d3d97c24506ea45bba6dcee4bcf3081f12af6f12b7e55067811c51d04",
-    "policy_version": "1.0.0",
+    "policy_sha256": "691a2d0d66105f738d82c801b74dc334a1d6f1752fb21cc74ac755f52472f345",
+    "policy_version": "1.1.0",
     "run_id": "reviewed-local-synthetic-retrieval-v1",
     "target_id": "synthetic-corpus-retrieval",
     "target_version": "1.0.0"

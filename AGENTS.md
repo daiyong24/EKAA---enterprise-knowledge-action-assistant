@@ -15,10 +15,9 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 19 — Multi-Agent Architecture. Do not implement chat memory, frontend
-functionality, or unattended consequential writes. Multi-agent work must remain a
-bounded, provider-neutral, evaluation-only candidate until the Stage 14 comparison
-justifies adoption.
+Stage 20 — Portfolio Finalization. Do not implement chat memory, frontend
+functionality, or unattended consequential writes. Portfolio work must remain
+synthetic/public-data-only and must not invent benchmarks or production claims.
 
 ## Engineering Rules
 

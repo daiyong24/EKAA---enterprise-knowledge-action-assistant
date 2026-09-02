@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "manifest_id": "ekaa-portfolio-manifest",
+  "manifest_version": "1.0.0",
+  "scope": "stage20-local-portfolio",
+  "data_policy": "synthetic_or_public_only",
+  "files": [
+    {
+      "path": "docs/evaluation/golden_dataset_v1.json",
+      "sha256": "4cdc992bd064610f10cd6789ab5acd2fd320f6bc51da506b01b222ef2b3372e3"
+    },
+    {
+      "path": "docs/evaluation/synthetic_corpus_v1.json",
+      "sha256": "c2e4d529881a0b711c4f5c6cc42b2ef1f6ed14a71e56a0dfef5678100fce2fa6"
+    },
+    {
+      "path": "docs/evaluation/baseline_policy_v1.json",
+      "sha256": "691a2d0d66105f738d82c801b74dc334a1d6f1752fb21cc74ac755f52472f345"
+    },
+    {
+      "path": "docs/evaluation/artifacts/synthetic_retrieval_baseline_v1.json",
+      "sha256": "e56b6b9db0f8c89e82b528277270717d81bfa21be60b755f2892f895d6c07efb"
+    },
+    {
+      "path": "docs/evaluation/stage12_baseline_v1.json",
+      "sha256": "3d46b526fdb9f611f70bb3aeac8bb49b9c2b1c5094766cac0545f6a79726dbf0"
+    },
+    {
+      "path": "docs/STAGE_20_REPORT.md",
+      "sha256": "d8f05080c7f0db9e69c573917d0f95b52c1e48b5669dc674fafef9908657a0aa"
+    },
+    {
+      "path": "docs/exec-plans/completed/stage20_portfolio_finalization.md",
+      "sha256": "4e0bedb82858e395572ce867b21a7666dc90874e8866268b76dc12d57e323820"
+    },
+    {
+      "path": "scripts/stage20_portfolio.py",
+      "sha256": "af708f561779027f24ea21d468dd5918c7f23ab34e67b34dd196f450d3ec14a7"
+    },
+    {
+      "path": "tests/unit/test_stage20_portfolio.py",
+      "sha256": "9855974340eacb2b4de0d867b9bb3a93354e47c4241034c9f771d6068e1df6e4"
+    },
+    {
+      "path": "docs/PORTFOLIO.md",
+      "sha256": "9d79b7b6c6db22f5819c19b5916db2bc51f36181c521227098e54b447a5d1a7f"
+    },
+    {
+      "path": "docs/PORTFOLIO_ARCHITECTURE.md",
+      "sha256": "9b0148806268c75a5488feb3371fb0562da5815404629743cfe85c3fbf50cb77"
+    },
+    {
+      "path": "docs/PORTFOLIO_SETUP.md",
+      "sha256": "fe148f6888eabc690f7f5cf32f2c6fd3071cd66933225bdac971c3e49abfa4a6"
+    },
+    {
+      "path": "docs/PORTFOLIO_METRICS.md",
+      "sha256": "232924f655b5b222df6b639866767dd2b73e15d83b7f340694a55ccd27885bdc"
+    },
+    {
+      "path": "docs/PORTFOLIO_DECISIONS.md",
+      "sha256": "803fee5ab1af8866beba8e53385890f65dfdea95f49893b91ae4e710d22d1257"
+    },
+    {
+      "path": "docs/PORTFOLIO_SECURITY.md",
+      "sha256": "37867425b39bb80ef74e06afcf6613226d7e7aafe7c299d8f59bc40dd6698947"
+    },
+    {
+      "path": "docs/PORTFOLIO_LIMITATIONS.md",
+      "sha256": "dd676652edb909903d318e353b4ffb5dc6b703c7db8e27e843bfe7450787d408"
+    },
+    {
+      "path": "docs/PORTFOLIO_WALKTHROUGH.md",
+      "sha256": "89622577f971f455d8838c738002a2e7baa50c8bec2dd81063726bf83a6e8848"
+    }
+  ]
+}

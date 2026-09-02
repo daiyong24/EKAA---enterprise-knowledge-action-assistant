@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 19 — Multi-Agent Architecture**. A stage may start only after
+The active stage is **Stage 20 — Portfolio Finalization**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -261,6 +261,8 @@ Stage 9 is complete.
 - **Non-goals:** Multi-agent for résumé optics or unbounded delegation.
 
 ## Stage 20 — Portfolio Finalization
+
+**Status: complete as a local, reproducible portfolio package.**
 
 - **Objective:** Publish an honest, reproducible technical case study.
 - **Deliverables:** Problem/architecture docs and diagrams, demo with synthetic data,

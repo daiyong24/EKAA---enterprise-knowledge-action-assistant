@@ -5,7 +5,7 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 19 — Multi-Agent Architecture (Stages 9–18 complete; multi-agent candidate
+Stage 20 — Portfolio Finalization (Stages 9–19 complete; multi-agent candidate
 measured locally and single-agent retained as default).
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
@@ -93,6 +93,25 @@ evidence, powered statistical evidence, and positive benefit gates; without the
 manifest or powered evidence, adoption is retained as single-agent. See
 `docs/STAGE_19_MULTI_AGENT_DESIGN.md` and
 `docs/STAGE_19_REPORT.md`.
+
+## Stage 20 Portfolio Finalization
+
+The portfolio package provides a reviewer-first case study, Mermaid architecture
+diagrams, fresh-machine setup, a safe synthetic fixture replay, a SHA-256
+reproducibility manifest, metric source audit, decision log, security/privacy notes,
+limitations, and a recorded-walkthrough plan (no recording is claimed). Validate and
+replay it locally without external calls:
+
+```powershell
+python scripts/stage20_portfolio.py validate
+python scripts/stage20_portfolio.py demo --output-dir .stage20-demo-output
+python scripts/stage20_portfolio.py audit-metrics
+```
+
+See `docs/PORTFOLIO.md` and `docs/STAGE_20_REPORT.md`. The package publishes only
+versioned Stage 8/12 artifact evidence; human quality, provider cost, production
+SLOs, and multi-agent adoption remain unavailable or unclaimed without qualifying
+evidence. No license or recording is invented.
 
 ## Stage 3 Retrieval
 
