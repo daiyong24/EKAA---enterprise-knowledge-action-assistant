@@ -15,9 +15,10 @@ changes as an ADR under `docs/adr/`.
 
 ## Current Stage
 
-Stage 20 — Portfolio Finalization. Do not implement chat memory, frontend
-functionality, or unattended consequential writes. Portfolio work must remain
-synthetic/public-data-only and must not invent benchmarks or production claims.
+Stage 21 — Local Backend End-to-End Demo. Do not implement chat memory, frontend
+functionality, or unattended consequential writes. Use the isolated Stage 21
+Compose project and synthetic fixture; preserve loopback API binding and keep the
+database on the internal network. Do not claim production readiness.
 
 ## Engineering Rules
 

@@ -12,6 +12,13 @@ def test_settings_have_safe_defaults() -> None:
     assert settings.api_prefix == ""
     assert settings.database_connect_timeout_seconds == 5
     assert settings.reliability_retry_jitter_ratio == 0.2
+    assert settings.rag_direct_evidence_profile is False
+
+
+def test_direct_evidence_profile_can_be_enabled_explicitly() -> None:
+    settings = Settings(rag_direct_evidence_profile=True, _env_file=None)
+
+    assert settings.rag_direct_evidence_profile is True
 
 
 def test_api_prefix_rejects_trailing_slash() -> None:

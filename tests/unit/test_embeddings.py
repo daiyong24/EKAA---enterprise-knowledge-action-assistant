@@ -74,7 +74,9 @@ def _batch(
 
 
 def test_deterministic_provider_is_repeatable_and_normalized() -> None:
-    provider = DeterministicHashEmbeddingProvider(model="local", dimensions=16)
+    provider = DeterministicHashEmbeddingProvider(
+        model="deterministic-hash-v1", dimensions=16
+    )
 
     first = provider.embed(["Network incident runbook", "Network incident runbook"])
     second = provider.embed(["Network incident runbook", "Network incident runbook"])
@@ -82,6 +84,48 @@ def test_deterministic_provider_is_repeatable_and_normalized() -> None:
     assert first == second
     assert first.vectors[0] == first.vectors[1]
     assert sum(value * value for value in first.vectors[0]) == pytest.approx(1.0)
+
+
+def test_deterministic_hash_v1_preserves_legacy_tokenizer_golden_vector() -> None:
+    vector = (
+        DeterministicHashEmbeddingProvider(model="deterministic-hash-v1", dimensions=64)
+        .embed(["Stage 21 synthetic recovery target 47 minutes"])
+        .vectors[0]
+    )
+
+    assert [(index, value) for index, value in enumerate(vector) if value] == [
+        (58, 1.0)
+    ]
+
+
+def test_deterministic_hash_v2_uses_words_and_matches_stage21_fixture() -> None:
+    provider = DeterministicHashEmbeddingProvider(
+        model="deterministic-hash-v2", dimensions=64
+    )
+    query = "What is the synthetic demo recovery target?"
+    chunk = (
+        "This document contains fictional data created only for the EKAA local demo. "
+        "The synthetic demo recovery target is 47 minutes. This value is invented "
+        "for this fixture and does not describe a real organization, service, or "
+        "operational target."
+    )
+
+    query_vector = provider.embed([query]).vectors[0]
+    chunk_vector = provider.embed([chunk]).vectors[0]
+    similarity = sum(
+        left * right for left, right in zip(query_vector, chunk_vector, strict=True)
+    )
+
+    assert query_vector == provider.embed([query]).vectors[0]
+    assert sum(value * value for value in query_vector) == pytest.approx(1.0)
+    assert sum(value * value for value in chunk_vector) == pytest.approx(1.0)
+    assert similarity == pytest.approx(0.617, abs=0.001)
+    assert similarity > 0.2
+
+
+def test_deterministic_provider_rejects_unsupported_algorithm_id() -> None:
+    with pytest.raises(EmbeddingConfigurationError):
+        DeterministicHashEmbeddingProvider(model="unknown", dimensions=64)
 
 
 def test_embedding_service_commits_complete_batches_and_stops_on_later_failure() -> (
@@ -154,7 +198,9 @@ def test_embedding_batch_storage_failure_rolls_back_the_whole_batch() -> None:
 
 def test_embedding_service_rejects_provider_metadata_at_construction() -> None:
     _, session_factory = _database_with_chunks(0)
-    provider = DeterministicHashEmbeddingProvider(model="wrong", dimensions=3)
+    provider = DeterministicHashEmbeddingProvider(
+        model="deterministic-hash-v2", dimensions=3
+    )
 
     with pytest.raises(EmbeddingConfigurationError):
         EmbeddingService(

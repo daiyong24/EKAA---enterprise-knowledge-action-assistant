@@ -1,0 +1,29 @@
+# Development-only overlay. PostgreSQL remains on the internal backend network.
+# Only the API receives a bridge route to reach Ollama on the Docker host.
+services:
+  api:
+    environment:
+      EKAA_EMBEDDING_ENABLED: "true"
+      EKAA_EMBEDDING_PROVIDER: deterministic
+      EKAA_EMBEDDING_MODEL: deterministic-hash-v2
+      EKAA_EMBEDDING_DIMENSIONS: "64"
+      EKAA_HYBRID_RETRIEVAL_ENABLED: "false"
+      EKAA_RERANKING_ENABLED: "false"
+      EKAA_RAG_ENABLED: "true"
+      EKAA_RAG_DIRECT_EVIDENCE_PROFILE: "true"
+      EKAA_RAG_MIN_EVIDENCE_SCORE: "0.2"
+      # Local generation exceeded the generic provider timeout; retain one bounded call.
+      EKAA_LLM_TIMEOUT_SECONDS: "60"
+      EKAA_LLM_MAX_RETRIES: "0"
+      EKAA_RELIABILITY_RAG_DEADLINE_SECONDS: "90"
+      EKAA_LLM_ENABLED: "true"
+      EKAA_LLM_BASE_URL: ${EKAA_LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      EKAA_LLM_API_KEY: ${EKAA_LLM_API_KEY:-ollama-local}
+      EKAA_LLM_MODEL: ${EKAA_LLM_MODEL:-qwen2.5:3b}
+    networks:
+      - backend
+      - ollama_bridge
+
+networks:
+  ollama_bridge:
+    driver: bridge

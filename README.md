@@ -5,8 +5,8 @@ grounded enterprise knowledge assistant and, later, a human-approved action agen
 
 ## Current Status
 
-Stage 20 — Portfolio Finalization (Stages 9–19 complete; multi-agent candidate
-measured locally and single-agent retained as default).
+Stage 21 — Local Backend End-to-End Demo (Stages 0–20 complete; multi-agent
+candidate measured locally and single-agent retained as default).
 
 Implemented now: FastAPI foundation, a provider-neutral stateless LLM boundary,
 safe ingestion of synthetic/public PDF, UTF-8 TXT, and UTF-8 Markdown into
@@ -316,6 +316,30 @@ LangGraph is not currently a dependency; the rationale and migration boundary ar
 recorded in `docs/adr/ADR-010-provider-neutral-agent-state-machine.md`. The local
 contract baseline and its recorded 3/3 result are in
 `docs/evaluation/stage12_baseline_v1.json`.
+
+## Stage 21 Local Backend Demo
+
+Stage 21 provides a repeatable local path through synthetic Markdown upload,
+deterministic embedding maintenance, pgvector retrieval, and Ollama-backed RAG with
+a citation. Its corrected `deterministic-hash-v2` tokenizer is isolated to the demo;
+the general `.env.example` default remains `deterministic-hash-v1` for databases
+containing version 1 vectors. It uses a separate Compose project and `.env.stage21`, leaving the
+existing `.env` and its database volume untouched. Copy `.env.stage21.example` to
+`.env.stage21` and set local-only database values, then run:
+
+```powershell
+.\scripts\stage21-local-demo.ps1
+```
+
+The script checks Ollama's local model list, starts PostgreSQL and the API in the
+isolated project, uploads the checked-in synthetic fixture idempotently, embeds
+pending chunks, and checks retrieval and citation identity. The API remains bound to
+127.0.0.1; PostgreSQL remains private on Compose's internal network, and only the
+API joins the host bridge used to reach Ollama. Hybrid retrieval and reranking stay
+off. For the manual Swagger route, setup/stop commands, expected output, local-model
+variability, and database-volume retention warnings, see
+`docs/STAGE_21_LOCAL_DEMO.md`. The database volume is retained on stop; review the
+document's explicit data-loss warning before any manual volume deletion.
 
 These stages are local reference implementations, not production IAM, enterprise
 SLO, multi-agent, or production-quality claims. Stage 13/14 approval state is an

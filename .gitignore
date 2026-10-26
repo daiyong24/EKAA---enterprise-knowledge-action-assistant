@@ -1,4 +1,6 @@
 .env
+.env.stage21
+.env.stage21.local
 .venv/
 ekaa.db
 ekaa.db-shm

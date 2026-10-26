@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     reranking_candidate_count: int = Field(default=12, ge=1, le=50)
     reranking_timeout_seconds: float = Field(default=1.0, gt=0, le=10)
     rag_enabled: bool = False
+    rag_direct_evidence_profile: bool = False
     rag_retrieval_top_k: int = Field(default=5, ge=1, le=50)
     rag_min_evidence_score: float = Field(default=0.2, ge=-1, le=1)
     rag_min_evidence_sources: int = Field(default=1, ge=1, le=10)

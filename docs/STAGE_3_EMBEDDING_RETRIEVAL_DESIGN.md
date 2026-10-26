@@ -35,6 +35,22 @@ Embeddings are versioned rather than overwritten. The uniqueness boundary is
 4. Delete an obsolete embedding version only through a future retention-approved
    migration/operation; Stage 3 performs no destructive cleanup.
 
+The local deterministic provider versions its tokenization as part of the embedding
+model ID. `deterministic-hash-v1` preserves the original legacy tokenizer so vectors
+already stored under that ID remain query-compatible. It is retained as the general
+configuration default for existing databases. `deterministic-hash-v2` uses the
+correct Unicode word-character tokenizer and is selected explicitly by the Stage 21
+local demo. These are deterministic feature-hash utilities, not semantic embedding
+models or production retrieval-quality claims. Never change an algorithm while
+reusing its old model ID: query and stored vectors must use the same exact version.
+
+For an existing v1 database, retain the v1 query setting while running the controlled
+maintenance command with `EKAA_EMBEDDING_MODEL=deterministic-hash-v2` in that
+maintenance process. Verify that every completed chunk has a v2 embedding with the
+configured dimension before switching the API query setting to v2 and recreating the
+API. The v1 and v2 rows can coexist; preserve v1 for rollback. Do not switch queries
+to a model/dimension pair until its completed-chunk coverage is complete.
+
 Each batch is validated before persistence for response count, model and dimension,
 and vector length. A successful batch commits in one transaction. If a later batch
 fails, earlier committed batches remain, the failed batch has no partial vector rows,

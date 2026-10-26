@@ -196,7 +196,9 @@ def create_app(
     application.state.rag_service = RagService(
         retrieval_service=application.state.retrieval_service,
         provider=reliable_llm_provider,
-        prompt_builder=RagPromptBuilder(),
+        prompt_builder=RagPromptBuilder(
+            direct_evidence_profile=resolved_settings.rag_direct_evidence_profile
+        ),
         context_builder=ContextBuilder(
             max_characters=resolved_settings.rag_max_context_characters,
             max_estimated_tokens=resolved_settings.rag_max_context_tokens,

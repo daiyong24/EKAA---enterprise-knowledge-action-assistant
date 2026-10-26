@@ -8,9 +8,15 @@ import re
 from collections.abc import Sequence
 from typing import Protocol, runtime_checkable
 
+from backend.app.embeddings.errors import EmbeddingConfigurationError
 from backend.app.embeddings.models import EmbeddingBatch
 
-_TOKEN_PATTERN = re.compile(r"[\\w]+", re.UNICODE)
+_TOKEN_PATTERNS = {
+    # Preserve the original v1 behavior so persisted vectors remain reproducible.
+    "deterministic-hash-v1": re.compile(r"[\\w]+", re.UNICODE),
+    # v2 corrects the word-character class; model ID scopes the new vectors.
+    "deterministic-hash-v2": re.compile(r"[\w]+", re.UNICODE),
+}
 
 
 @runtime_checkable
@@ -35,8 +41,12 @@ class DeterministicHashEmbeddingProvider:
     """
 
     def __init__(self, *, model: str, dimensions: int) -> None:
+        token_pattern = _TOKEN_PATTERNS.get(model)
+        if token_pattern is None:
+            raise EmbeddingConfigurationError
         self._model = model
         self._dimensions = dimensions
+        self._token_pattern = token_pattern
 
     @property
     def model(self) -> str:
@@ -55,7 +65,7 @@ class DeterministicHashEmbeddingProvider:
 
     def _embed_one(self, text: str) -> tuple[float, ...]:
         values = [0.0] * self.dimensions
-        tokens = _TOKEN_PATTERN.findall(text.casefold())
+        tokens = self._token_pattern.findall(text.casefold())
         for token in tokens:
             digest = hashlib.sha256(token.encode("utf-8")).digest()
             bucket = int.from_bytes(digest[:4], "big") % self.dimensions

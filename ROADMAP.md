@@ -2,7 +2,7 @@
 
 ## Roadmap Rules
 
-The active stage is **Stage 20 — Portfolio Finalization**. A stage may start only after
+The active stage is **Stage 21 — Local Backend End-to-End Demo**. A stage may start only after
 the prior stage passes its acceptance criteria and the user explicitly authorizes
 the next stage. Security, privacy, testability, safe errors, and telemetry hooks are
 cross-cutting requirements; their dedicated stages deepen and verify them.
@@ -274,6 +274,29 @@ Stage 9 is complete.
   to a versioned run; limitations and tradeoffs are explicit.
 - **Non-goals:** Invented benchmarks, confidential data, or production claims not
   supported by evidence.
+
+## Stage 21 — Local Backend End-to-End Demo
+
+**Status: active; user authorized implementation.**
+
+- **Objective:** Demonstrate a complete local synthetic-data path through document
+  upload, deterministic embedding maintenance, PostgreSQL/pgvector retrieval, and
+  Ollama-backed grounded answering with a citation.
+- **Deliverables:** Development-only Compose overlay with a separately named project
+  and local env template; one short synthetic Markdown fixture; repeatable PowerShell
+  smoke/demo script; Swagger walkthrough; explicit local-model, network, and data
+  retention notes; Stage 21 report.
+- **Tests:** Compose configuration and network isolation; loopback-only API binding;
+  PowerShell syntax; fixture upload/retrieval/citation contract; relevant project
+  tests, lint, formatting, type checks, and diff checks.
+- **Acceptance:** The isolated local stack becomes healthy; only the API can reach the
+  host Ollama bridge and PostgreSQL stays on its existing internal network; fixture
+  upload is idempotent; pending embeddings are created; retrieval returns the fixture;
+  RAG returns a supported claim with a citation to that fixture. Any live check not
+  actually run is recorded as NOT_RUN and does not count as a pass.
+- **Non-goals:** Frontend, production deployment, real business data, chat memory,
+  hybrid retrieval, reranking, migration/schema changes, or touching the existing
+  `.env`, Compose project, or database volume.
 
 ## Stage Report Template
 
